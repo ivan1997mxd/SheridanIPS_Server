@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <title>Sheridan ILS Server</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../static/js/jquery-2.1.4.min.js"></script>
+    <script src="../static/js/bootstrap-3.3.5.min.js"></script>
+    <script src="../static/js/jquery-ui-1.11.4.min.js"></script>
+    <link rel="shortcut icon" href="../static/img/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../static/img/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../static/css/bootstrap-3.3.5.min.css">
+    <link rel="stylesheet" href="../static/css/bootstrap-vertical-menu.css">
+    <link rel="stylesheet" href="../static/css/font-awesome-4.4.0.min.css">
+    <link rel="stylesheet" href="../static/css/dash.css">
+</head>
+
+<body style="background-color: initial;">
+
+<div style="margin: 30px 40px;">
+    <!-- Main Content Area -->
+    <div class="container container-box">
+        <div class="main clearfix">
+            <!-- navigate left side bar -->
+            <nav id="nav" class="navbar navbar-vertical-left" onmousemove="resizeContent(1)"
+                 onmouseout="resizeContent(2)">
+                <ul class="nav navbar-nav" style="height: 200px;">
+                    <li><a href="/home">
+                        <i class="fa fa-fw fa-lg fa-home"></i><span>Sheridan</span></a>
+                    </li>
+                    <li><a href="/location">
+                        <i class="fa fa-fw fa-lg fa-location-arrow"></i><span>Map</span></a>
+                    </li>
+                    <li><a href="/setting"><i class="fa fa-fw fa-lg fa-cog"></i><span>Setting</span></a>
+                    </li>
+                    <li><a href="/wifi">
+                        <i class="fa fa-fw fa-lg fa-list"></i><span>Wifi List</span></a>
+                    </li>
+                    <li><a href="/login">
+                        <i class="fa fa-fw fa-lg fa-sign-out"></i><span>Sign Out</span></a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- main content container -->
+            {% block main_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+<!-- script -->
+{% block script %}{% endblock %}
+</body>
+</html>

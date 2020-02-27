@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+
+{% block main_content %}
+{#    <meta http-equiv="refresh" content="3">#}
+    <div id="bodyHobbies">
+        <div class="intbox1 item"><h1>Map</h1>
+            <a href="{{ url_for('location') }}">
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal"><i class="fa fa-fw fa-lg fa-refresh"></i> Refresh</button>
+            </a>
+            <img src="{{ url_for('static', filename= img,_t=val1) }}" border="0" alt=""/>
+        </div>
+        <div class="intbox2  item"><h1>User List</h1>
+            <div class="table-responsive">
+                <table id="my" class="table table-hover" data-toggle="table">
+                    <thead>
+                    <tr>
+                        <th>User Name<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                        <th>Room<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                        <th>Zone<i class="fa fa-fw fa-sm fa-sort"></th>
+                        <th>Time<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    </tr>
+                    </thead>
+                    <tbody id="wifi_list">
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.room }}</td>
+                            <td>{{ user.position[-1].zone }}</td>
+                            <td>{{ user.position[-1].time }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="intbox3 item"><h1>Notification</h1>
+            <form role="form" method="post">
+                <label for="talktarget">Target</label>
+                <input type="search" class="talk_word" id="talktarget">
+                <label for="talktitle">Title</label>
+                <input type="text" class="talk_word" id="talktitle">
+                <label for="talkwords">Content</label>
+                <input type="text" class="talk_word" id="talkwords">
+                <input type="submit" class="talk_sub" id="talksub" value="Send">
+            </form>
+        </div>
+        <div class="intbox4 item"><h1>Control Panel</h1>
+        </div>
+    </div>
+{% endblock %}
+
+{% block script %}
+    <link rel="stylesheet" href="../static/css/location.css">
+{% endblock %}

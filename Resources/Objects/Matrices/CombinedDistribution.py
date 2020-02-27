@@ -1,0 +1,105 @@
+from Resources.Objects.Matrices.NormalizedDistribution import NormalizedMatrix
+from Resources.Objects.Matrices.Matrix import Matrix
+from Resources.Objects.Points.AccessPoint import AccessPoint
+from Resources.Objects.TestData import Sample, TestResult
+from Resources.Objects.Points.Centroid import Centroid
+from Algorithms.NearestNeighbour.NNv4 import get_NNv4
+from Resources.Objects.Zone import Zone, get_zone
+from typing import List, Dict, Callable
+
+
+class CombinedMatrix(Matrix):
+    # region Constructor
+    def __init__(self, *normalizations: NormalizedMatrix, size: int):
+        self.__normalizations = [*normalizations]      # type: List[NormalizedMatrix]
+        self.__access_points = list()                  # type: List[AccessPoint]
+        self.__zones = list()                          # type: List[Zone]
+        self.__id = None                               # type: Union[None, str]
+
+        for norm in self.__normalizations:
+            for ap in norm.access_points:
+                self.__access_points.append(ap)
+            for zone in norm.zones:
+                if zone not in self.__zones:
+                    self.__zones.append(zone)
+
+        super(CombinedMatrix, self).__init__(access_points=self.__access_points, zones=self.__zones, size=size)
+    # endregion
+
+    # region Properties
+    @property
+    def normalizations(self) -> List[NormalizedMatrix]:
+        return self.__normalizations
+    # endregion
+
+    # region Methods
+    def increment_cell(self, actual_zone: Zone, resultant_vector: Dict[Zone, float]) -> None:
+        # Find the highest probability, and check if it occurs more than once:
+        highest_probability = max(resultant_vector.values())
+        num_occurrences = 0
+
+        for prob in resultant_vector.values():
+            if prob == highest_probability:
+                num_occurrences += 1
+
+        # Find the zones being reported by the highest probabilities, and increment them:
+        for zone, value in resultant_vector.items():
+            if value == highest_probability:
+                self.increment_value(zone, actual_zone, 1/num_occurrences)
+    # endregion
+
+    # region Override Methods
+    @property
+    def id(self) -> str:
+        if self.__id is not None:
+            return self.__id
+
+        Str = ""
+        for norm in self.__normalizations:
+            aps = ""
+            for ap in norm.access_points:
+                aps += str(ap.num)
+            Str += aps + " U "
+        self.__id = Str[:-3]
+        return self.__id
+    # endregion
+
+
+def test_combination_matrices(normalized_combined_distributions: List[NormalizedMatrix],
+                              centroids: List[Centroid],
+                              zones: List[Zone],
+                              testing_data: List[Sample],
+                              combination_method: Callable) -> Dict[NormalizedMatrix, TestResult]:
+
+    combine_vectors = combination_method
+
+    test_results = dict()                   # type: Dict[NormalizedMatrix, TestResult]
+    for normalized in normalized_combined_distributions:
+
+        resultant = normalized.parent_matrix
+
+        test_result = TestResult()
+
+        #JC-01 used the measured/reported zone instead of the actual zone to the algorithm.
+        for sample in testing_data:
+            vectors = list()        # type: List[Dict[Zone, float]]
+            answers = list()
+            for distribution in resultant.normalizations:
+
+                ap_rssi_dict = sample.get_ap_rssi_dict(*distribution.access_points)
+
+                coord = get_NNv4(centroid_points=centroids, rssis=ap_rssi_dict)
+                zone = get_zone(zones=zones, co_ordinate=coord)
+
+                vector = distribution.get_vector(zone)
+                vectors.append(vector)
+                answers.append(zone)
+
+            NormalizedMatrix.theAnswer = sample.answer #JC-01 - used to pass the true answer around for run-time validation - used by dbg_combine_vector
+
+            resultant_vector = combine_vectors(answers, *vectors)
+            test_result.record(sample.answer, resultant_vector)
+
+        test_results[normalized] = test_result
+
+    return test_results

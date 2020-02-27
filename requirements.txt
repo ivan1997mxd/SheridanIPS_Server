@@ -1,0 +1,7 @@
+xlrd
+pandas
+xlsxwriter
+scipy
+Flask
+NumPy
+PyMongo
