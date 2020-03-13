@@ -25,6 +25,8 @@ class Zone:
     # endregion
 
     def __str__(self) -> str:
+        if self.__num == 6:
+            return "Unknown Actual Zone"
         return "Zone " + str(self.__num)
 
     def contains(self, point: Tuple[float, float]) -> bool:

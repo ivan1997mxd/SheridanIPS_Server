@@ -24,6 +24,7 @@ def create_all_matrices_from_rssi_data(access_points: List[AccessPoint],
                                                                                      List[NormalizedMatrix],
                                                                                      List[CombinedMatrix],
                                                                                      List[NormalizedMatrix],
+                                                                                     Dict[NormalizedMatrix, TestResult]
 ]:
     start_time = time()
 
@@ -61,16 +62,16 @@ def create_all_matrices_from_rssi_data(access_points: List[AccessPoint],
     combination_end_time = time()
 
     # 6. Run tests.
-    #  test_results = test_combination_matrices(normalized_combined_distributions=normalized_combined_distributions,
-    #                                          centroids=centroids,
-    #                                          zones=zones,
-    #                                          testing_data=testing_data,
-    #                                          #                                            combination_method=get_combination_function("DBG"))    #JC-01 use the debugging method.
-    #                                          combination_method=combination_method)
+    test_results = test_combination_matrices(normalized_combined_distributions=normalized_combined_distributions,
+                                             centroids=centroids,
+                                             zones=zones,
+                                             testing_data=testing_data,
+                                             #                                            combination_method=get_combination_function("DBG"))    #JC-01 use the debugging method.
+                                             combination_method=combination_method)
 
-    # print("-- Completed Testing Distributions.")
+    print("-- Completed Testing Distributions.")
 
-    # test_end_time = time()
+    test_end_time = time()
 
     # # 7. Record all Matrices separately.
     # for p in probability_distributions:
@@ -100,12 +101,12 @@ def create_all_matrices_from_rssi_data(access_points: List[AccessPoint],
     # print("-- Object creation time: {}".format(object_creation_time - start_time))
     print("-- Combination run time: {}".format(combination_end_time - combination_start_time))
     # print("-- Matrix record time: {}".format(end_time - combination_end_time))
-    # print("-- Testing run time: {}".format(test_end_time - combination_end_time))
+    print("-- Testing run time: {}".format(test_end_time - combination_end_time))
     print("-- Matrix Production run time: {}".format(end_time - start_time))
     print()
 
     # 9. Return Matrix objects to caller
-    return probability_distributions, normalized_distributions, combined_distributions, normalized_combined_distributions
+    return probability_distributions, normalized_distributions, combined_distributions, normalized_combined_distributions, test_results
 
 
 def record_matrices(matrix_list: List[NormalizedMatrix], file_path: str):

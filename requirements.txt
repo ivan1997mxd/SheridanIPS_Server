@@ -1,3 +1,5 @@
+celery
+cv2
 xlrd
 pandas
 xlsxwriter

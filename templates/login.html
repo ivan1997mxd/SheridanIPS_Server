@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +13,7 @@
     <link rel="stylesheet" href="../static/css/font-awesome-4.4.0.css">
     <link rel="stylesheet" href="../static/css/form-elements.css">
     <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/load.css">
 
     <!-- Favicon and touch icons -->
     <link rel="shortcut icon" href="../static/img/favicon.png">
@@ -28,7 +28,7 @@
 
 <!-- Top content -->
 <div class="top-content">
-
+    <div id="hidebg"></div>
     <div class="inner-bg">
         <div class="container">
             <div class="row">
@@ -48,6 +48,7 @@
                         <div class="form-top-left">
                             <h3>Login to Server</h3>
                             <p>Enter your username and password to log on:</p>
+                            <p style="color: red">{{ response }}</p>
                         </div>
                         <div class="form-top-right">
                             <i class="fa fa-key"></i>
@@ -65,16 +66,45 @@
                                 <input type="password" name="form-password" placeholder="Password..."
                                        class="form-password form-control" id="form-password">
                             </div>
-                            <button type="submit" class="btn">Sign in!</button>
+                            <button type="submit" class="btn" onclick="show()">Sign in!</button>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
+    <div id="hidebox">
+        <span onClick="hide()" style="cursor:pointer;">Close</span>
+        <div class="spinner">
+            <h1>Loading</h1>
+            <div class="rect1"></div>
+            <div class="rect2"></div>
+            <div class="rect3"></div>
+            <div class="rect4"></div>
+            <div class="rect5"></div>
+        </div>
+    </div>
 </div>
+<script>
+    function show()  //显示隐藏层和弹出层
+    {
+        if ($("#form-username").val() === "" || $("#form-password").val() === "") {
+            console.log("Empty")
+        } else {
+            var hideobj = document.getElementById("hidebg");
+            hideobj.style.display = "block";  //显示隐藏层
+            //hidebg.style.height=document.body.clientHeight+"px";  //设置隐藏层的高度为当前页面高度
+            document.getElementById("hidebox").style.display = "block";  //显示弹出层
+        }
 
+    }
+
+    function hide()  //去除隐藏层和弹出层
+    {
+        document.getElementById("hidebg").style.display = "none";
+        document.getElementById("hidebox").style.display = "none";
+    }
+</script>
 
 <!-- Javascript -->
 <script src="../static/js/jquery-2.1.4.min.js"></script>

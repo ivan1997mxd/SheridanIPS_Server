@@ -1,54 +1,145 @@
 {% extends "layout.html" %}
 
 {% block main_content %}
-{#    <meta http-equiv="refresh" content="3">#}
-    <div id="bodyHobbies">
-        <div class="intbox1 item"><h1>Map</h1>
-            <a href="{{ url_for('location') }}">
-                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal"><i class="fa fa-fw fa-lg fa-refresh"></i> Refresh</button>
-            </a>
-            <img src="{{ url_for('static', filename= img,_t=val1) }}" border="0" alt=""/>
+    {#    <meta http-equiv="refresh" content="3">#}
+    <h1>Students List</h1>
+    <div id="main-content" class="htmleaf-container">
+        <div style="padding-left: 93%;">
+            <a type="button" class="btn btn-primary" href="/location">
+                <i class="fa fa-fw fa-lg fa-refresh"></i>Refresh</a>
         </div>
-        <div class="intbox2  item"><h1>User List</h1>
-            <div class="table-responsive">
-                <table id="my" class="table table-hover" data-toggle="table">
-                    <thead>
+
+        <a class="open" id="open" href="javascript:" title="revert" style="display: none"></a>
+        <div class="table-responsive">
+            <table id="my" class="table table-hover" data-toggle="table">
+                <thead>
+                <tr>
+                    <th>Id<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Actual Zone<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Primary Zone<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Secondary Zone<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Time<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="wifi_list">
+                {% for item in zone_data %}
                     <tr>
-                        <th>User Name<i class="fa fa-fw fa-sm fa-sort"></i></th>
-                        <th>Room<i class="fa fa-fw fa-sm fa-sort"></i></th>
-                        <th>Zone<i class="fa fa-fw fa-sm fa-sort"></th>
-                        <th>Time<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                        {% for key, value in item.items() %}
+                            <td>{{ value }}</td>
+                        {% endfor %}
+                        <td>
+                            <input type="button" value="Show Map"/>
+                        </td>
                     </tr>
-                    </thead>
-                    <tbody id="wifi_list">
-                    {% for user in users %}
-                        <tr>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.room }}</td>
-                            <td>{{ user.position[-1].zone }}</td>
-                            <td>{{ user.position[-1].time }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="drag">
+            <div class="title">
+                <h2>Map</h2>
+                <div>
+                    <a class="min" href="javascript:" title="MIN"></a>
+                    <a class="max" href="javascript:" title="MAX"></a>
+                    <a class="revert" href="javascript:" title="REVERT"></a>
+                    <a class="close" href="javascript:" onclick="hide()" title="CLOSE"></a>
+                </div>
             </div>
-        </div>
-        <div class="intbox3 item"><h1>Notification</h1>
-            <form role="form" method="post">
-                <label for="talktarget">Target</label>
-                <input type="search" class="talk_word" id="talktarget">
-                <label for="talktitle">Title</label>
-                <input type="text" class="talk_word" id="talktitle">
-                <label for="talkwords">Content</label>
-                <input type="text" class="talk_word" id="talkwords">
-                <input type="submit" class="talk_sub" id="talksub" value="Send">
-            </form>
-        </div>
-        <div class="intbox4 item"><h1>Control Panel</h1>
+            <div class="resizeL"></div>
+            <div class="resizeT"></div>
+            <div class="resizeR"></div>
+            <div class="resizeB"></div>
+            <div class="resizeLT"></div>
+            <div class="resizeTR"></div>
+            <div class="resizeBR"></div>
+            <div class="resizeLB"></div>
+            <div class="content">
+                <img id="Map1" src="/static/img/test.jpg" style="display: none" border="0" alt=""/>
+                <img id="Map2" src="/static/img/test.jpg" border="0" alt=""/>
+                <label class="switch">
+                    <input type="checkbox" id="details" onclick="toggle()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
         </div>
     </div>
 {% endblock %}
 
 {% block script %}
     <link rel="stylesheet" href="../static/css/location.css">
+    <link rel="stylesheet" href="../static/css/drag.css">
+    <script type="text/javascript" src="//cdn.bootcss.com/socket.io/1.5.1/socket.io.min.js"></script>
+    <link rel="stylesheet" href="../static/css/switch.css">
+    <script src="../static/js/drag.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            namespace = '/test';
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+            socket.on('message', function (res) {
+                if (res) {
+                    var rowLength = $("#wifi_list tr").length + 1;
+                    console.log(res);
+                    var $tr = $("<tr>" +
+                        "<td>" + rowLength + "</td>" +
+                        "<td>" + res.Actual_Zone + "</td>" +
+                        "<td>" + res.Primary_Zone + "</td>" +
+                        "<td>" + res.Secondary_Zone + "</td>" +
+                        "<td>" + res.Time + "</td>" +
+                        "<td><input type=\"button\" value=\"Show Map\"/></td>"
+                        + "</tr>");
+                    $("#wifi_list").append($tr);
+                    $('#Map1').attr("src", "/static/img/test1.jpg" + "?" + Math.random());
+                    $('#Map2').attr("src", "/static/img/test2.jpg" + "?" + Math.random());
+                }
+            });
+        });
+
+        $(function () {
+            $("#my").on("click", ":button", function (event) {
+                let value = $(this).closest("tr").index();
+                console.log(value);
+                var data = {"number": value};
+                $.ajax(
+                    {
+                        type: "POST",
+                        url: "/update",
+                        data: data,
+                        dataType: 'json',
+                        success: function (data) {
+                            $('#Map1').attr("src", "/static/img/test1.jpg" + "?" + Math.random());
+                            $('#Map2').attr("src", "/static/img/test2.jpg" + "?" + Math.random());
+                            console.log(data);
+                            show()
+                        },
+                        error: function (xhr, status, error) {
+                            console.log(error);
+                        }
+                    });
+            });
+        });
+
+        function toggle() {
+            let detailSwitch = $("#details");
+            let img1 = $("#Map1");
+            let img2 = $("#Map2");
+            if (detailSwitch.prop("checked") === true) {
+                img1.css('display', 'block');
+                img2.css('display', 'none');
+            } else {
+                img2.css('display', 'block');
+                img1.css('display', 'none');
+            }
+        }
+
+        function show() {
+            document.getElementById('drag').style.display = "";
+        }
+
+        function hide() {
+            document.getElementById('drag').style.display = "none";
+        }
+
+
+    </script>
 {% endblock %}

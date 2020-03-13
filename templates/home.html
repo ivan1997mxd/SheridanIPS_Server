@@ -7,13 +7,11 @@
                 <h1 class="page-header">Home</h1>
                 <!-- Single button -->
                 <p>
-                    <button type="button" class="btn btn-default">Operation1</button>
-                    <button type="button" class="btn btn-primary">Operation2</button>
-                    <button type="button" class="btn btn-success ">Operation3</button>
-                    <button type="button" class="btn btn-info ">Operation4</button>
-                    <button type="button" class="btn btn-warning ">Operation5</button>
-                    <button type="button" class="btn btn-danger ">Operation6</button>
-
+                    <button id="Zone1" type="button" class="btn btn-default">Zone1</button>
+                    <button id="Zone2" type="button" class="btn btn-primary">Zone2</button>
+                    <button id="Zone3" type="button" class="btn btn-success ">Zone3</button>
+                    <button id="Zone4" type="button" class="btn btn-info ">Zone4</button>
+                    <button id="Zone5" type="button" class="btn btn-warning ">Zone5</button>
                 </p>
 
                 <br>
@@ -149,4 +147,28 @@
             </div><!--/.row-->
         </div>
     </div>
+{% endblock %}
+{% block script %}
+    <script type="text/javascript">
+        $("#Zone1").click(function () {
+            window.location.href = "Zone/1";
+            console.log("clicked!");
+        });
+        $("#Zone2").click(function () {
+            window.location.href = "Zone/2";
+            console.log("clicked!");
+        });
+        $("#Zone3").click(function () {
+            window.location.href = "Zone/3";
+            console.log("clicked!");
+        });
+        $("#Zone4").click(function () {
+            window.location.href = "Zone/4";
+            console.log("clicked!");
+        });
+        $("#Zone5").click(function () {
+            window.location.href = "Zone/5";
+            console.log("clicked!");
+        })
+    </script>
 {% endblock %}

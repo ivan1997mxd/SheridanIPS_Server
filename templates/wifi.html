@@ -1,45 +1,93 @@
-
 {% extends "layout.html" %}
 
 {% block main_content %}
-    <h1>Data received List</h1>
-<div id="main-content" class="htmleaf-container">
-    <div style="padding-left: 93%;">
-        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal"><i class="fa fa-fw fa-lg fa-refresh"></i> Refresh</button>
-    </div>
+    <h1>Students List</h1>
+    <div id="main-content" class="htmleaf-container">
+        <div style="padding-left: 93%;">
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal"><i
+                    class="fa fa-fw fa-lg fa-refresh"></i> Refresh
+            </button>
+        </div>
 
-    <div class="table-responsive">
-        <table id="my" class="table table-hover" data-toggle="table">
-            <thead>
+        <div class="table-responsive">
+            <table id="my" class="table table-hover" data-toggle="table">
+                <thead>
                 <tr>
-                    <th>Device ID<i class="fa fa-fw fa-sm fa-sort"></i></th>
-                    <th>Scan Number<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Id<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Base Zone Error<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Primary Zone<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th>Secondary Zone<i class="fa fa-fw fa-sm fa-sort"></i></th>
                     <th>Time<i class="fa fa-fw fa-sm fa-sort"></i></th>
                     <th>Action</th>
                 </tr>
-            </thead>
-            <tbody id="wifi_list">
-            <tr>
-                <td>{{ wifi.Device_ID }}</td>
-                <td>{{ wifi.Scan_number }}</td>
-                <td>{{ time }}</td>
-                <td><button>Delete</button></td>
-            </tr>
-            </tbody>
-        </table>
+                </thead>
+                <tbody id="wifi_list">
+                {% for d in data %}
+                    <tr>
+                        <td>{{ d.AP }}</td>
+                        <td>{{ d.FirstAverage }}</td>
+                        <td>{{ d.FirstAverage }}</td>
+                        <td>{{ d.SecondAverage }}</td>
+                        <td>{{ d.Overall }}</td>
+                        <td>
+                            <input type="button" value="Show Map"/>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
+
+    <a class="open" id="open" href="javascript:" title="revert" style="display: none"></a>
+
+    <div id="drag">
+        <div class="title">
+            <h2>Map</h2>
+            <div>
+                <a class="min" href="javascript:" title="MIN"></a>
+                <a class="max" href="javascript:" title="MAX"></a>
+                <a class="revert" href="javascript:" title="REVERT"></a>
+                <a class="close" href="javascript:" onclick="hide()" title="CLOSE"></a>
+            </div>
+        </div>
+        <div class="resizeL"></div>
+        <div class="resizeT"></div>
+        <div class="resizeR"></div>
+        <div class="resizeB"></div>
+        <div class="resizeLT"></div>
+        <div class="resizeTR"></div>
+        <div class="resizeBR"></div>
+        <div class="resizeLB"></div>
+        <div class="content">
+            <img src="{{ url_for('static', filename= img,_t=val1) }}" border="0" alt=""/>
+        </div>
+    </div>
 {% endblock %}
 
 {% block script %}
-
-<script type="text/javascript">
-    $(document).ready(function(){
-        $(function(){
-            $("#my").tablesorter({ sortList: [[2, 1]] });
-
+    <link rel="stylesheet" href="../static/css/drag.css">
+    <script src="../static/js/drag.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            $("#my").on("click", ":button", function (event) {
+                let value = $(this).closest("tr").index();
+                data = {"number": value};
+                $.ajax(
+                    {
+                        type: "POST",
+                        url: "/wifi",
+                        data: data,
+                        dataType: 'json',
+                        success: function (data) {
+                            console.log(data);
+                        },
+                        error: function (xhr, status, error) {
+                            console.log(error);
+                        }
+                    });
+                location.reload();
+            });
         });
-    });
-    // my_alert("welcome to the dashboard");
-</script>
+    </script>
 {% endblock %}

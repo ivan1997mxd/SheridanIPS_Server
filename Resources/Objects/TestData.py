@@ -15,12 +15,12 @@ class Sample:
     """
 
     def __init__(self, actual_zone: Zone, scan_data: Dict[AccessPoint, int]):
-        self.__actual_zone = actual_zone    # type: Zone
-        self.__scan_data = scan_data        # type: Dict[AccessPoint, int]
+        self.__actual_zone = actual_zone  # type: Zone
+        self.__scan_data = scan_data  # type: Dict[AccessPoint, int]
 
         # Used in Adaptive Boosting methods:
-        self.__weight = float()             # type: float
-        self.__correct = bool()             # type: bool
+        self.__weight = float()  # type: float
+        self.__correct = bool()  # type: bool
 
     # region Properties
     @property
@@ -38,6 +38,7 @@ class Sample:
     @property
     def correct(self) -> bool:
         return self.__correct
+
     # endregion
 
     # region Setters
@@ -48,6 +49,7 @@ class Sample:
     @correct.setter
     def correct(self, value: bool) -> None:
         self.__correct = value
+
     # endregion
 
     def rssi(self, access_point: AccessPoint) -> int:
@@ -69,9 +71,9 @@ class Sample:
 class TestResult:
 
     def __init__(self):
-        self.__correct = 0              # type: int
-        self.__total_tests = 0          # type: int
-        self.__sec_correct = 0              # type: int
+        self.__correct = 0  # type: int
+        self.__total_tests = 0  # type: int
+        self.__sec_correct = 0  # type: int
         self.__answer_details = dict()  # type: Dict[Zone, Dict[str, int]]
 
     @property
@@ -92,17 +94,20 @@ class TestResult:
     def tests_ran(self) -> int:
         return self.__total_tests
 
-    #JC-01 - add code to support 2nd guess information
+    # JC-01 - add code to support 2nd guess information
     def record(self, zone: Zone, vector: Dict[Zone, float]) -> None:
         self.__total_tests += 1
 
         # Get max probability in the vector
         most_likely_zone = max(vector, key=vector.get)
+        base_zone_error_1 = abs(most_likely_zone.num - zone.num)
         if most_likely_zone == zone:
             self.__correct += 1
 
             if zone not in self.__answer_details:
-                self.__answer_details[zone] = {"times_tested": 1, "times_correct": 1, "times_2nd_correct" : 0}
+                self.__answer_details[zone] = {"times_tested": 1, "times_correct": 1, "times_2nd_correct": 0,
+                                               "base_zone_error_1": 0.0, "base_zone_error_2": 0.0}
+
             else:
                 self.__answer_details[zone]["times_tested"] += 1
                 self.__answer_details[zone]["times_correct"] += 1
@@ -110,19 +115,26 @@ class TestResult:
 
         vector[most_likely_zone] = 0.0
         most_likely_zone = max(vector, key=vector.get)
+        base_zone_error_2 = abs(most_likely_zone.num - zone.num)
         if most_likely_zone == zone:
             self.__sec_correct += 1
 
             if zone not in self.__answer_details:
-                self.__answer_details[zone] = {"times_tested": 1, "times_correct": 0, "times_2nd_correct" : 1}
+                self.__answer_details[zone] = {"times_tested": 1, "times_correct": 0, "times_2nd_correct": 1,
+                                               "base_zone_error_1": base_zone_error_1, "base_zone_error_2": 0.0}
             else:
+                self.__answer_details[zone]["base_zone_error_1"] += base_zone_error_1
                 self.__answer_details[zone]["times_tested"] += 1
                 self.__answer_details[zone]["times_2nd_correct"] += 1
             return
 
         if zone not in self.__answer_details:
-            self.__answer_details[zone] = {"times_tested": 1, "times_correct": 0, "times_2nd_correct" : 0}
+            self.__answer_details[zone] = {"times_tested": 1, "times_correct": 0, "times_2nd_correct": 0,
+                                           "base_zone_error_1": base_zone_error_1,
+                                           "base_zone_error_2": base_zone_error_2}
         else:
+            self.__answer_details[zone]["base_zone_error_1"] += base_zone_error_1
+            self.__answer_details[zone]["base_zone_error_2"] += base_zone_error_2
             self.__answer_details[zone]["times_tested"] += 1
 
 
@@ -137,7 +149,7 @@ def create_test_data_list(access_points: List[AccessPoint],
         will be used to fill in the missing values.
     """
 
-    samples = list()        # type: List[Sample]
+    samples = list()  # type: List[Sample]
 
     for date in dates:
         for time in times:
@@ -149,7 +161,7 @@ def create_test_data_list(access_points: List[AccessPoint],
             for file in data_files:
 
                 # Read the entire file, and load them into the dict.
-                bssid_rssi_dict = dict()   # type: Dict[str, List[int]]
+                bssid_rssi_dict = dict()  # type: Dict[str, List[int]]
                 answer = zones[int(file[-5]) - 1]
                 longest_rssis = 0
 
@@ -172,7 +184,7 @@ def create_test_data_list(access_points: List[AccessPoint],
 
                 for index in range(longest_rssis):
 
-                    ap_rssi_dict = dict()   # type: Dict[AccessPoint, int]
+                    ap_rssi_dict = dict()  # type: Dict[AccessPoint, int]
 
                     for key, rssis in bssid_rssi_dict.items():
 
@@ -188,7 +200,7 @@ def create_test_data_list(access_points: List[AccessPoint],
                                     ap_rssi_dict[access_point] = rssis[index]
                                 except IndexError:
                                     # Hit because this AP may not have enough RSSI values. Append the average.
-                                    ap_rssi_dict[access_point] = floor(sum(rssis)/len(rssis))
+                                    ap_rssi_dict[access_point] = floor(sum(rssis) / len(rssis))
 
                                 found = True
                                 break
