@@ -1,0 +1,151 @@
+#school-map {
+    width: 1050px;
+    height: 900px;
+    background: url("../img/trafalgar_campus_map.png") no-repeat
+}
+
+#school-map input {
+    width: 42px;
+    height: 42px;
+    background-color: #f44336;
+    border-radius: 50%;
+    float: left;
+    text-align: center;
+    font-size: 12px;
+    border: 1px solid #d5d5d5;
+}
+
+#school-map .A-Wing-Class {
+    margin-top: 300px;
+    margin-left: 355px;
+}
+
+#school-map .G-Wing-Class {
+    margin-top: 577px;
+    margin-left: -34px;
+}
+
+#school-map .B-Wing-Class {
+    margin-top: 372px;
+    margin-left: 1px;
+}
+
+#school-map .E-Wing-Class {
+    margin-top: 493px;
+    margin-left: 45px;
+}
+
+#school-map .D-Wing-Class {
+    margin-top: 349px;
+    margin-left: 32px;
+}
+
+#school-map .C-Wing-Class {
+    margin-top: 496px;
+    margin-left: -15px;
+}
+
+
+#school-map .H-Wing-Class {
+    margin-top: 287px;
+    margin-left: 10px;
+}
+
+#school-map .J-Wing-Class {
+    margin-top: 328px;
+    margin-left: 77px;
+}
+
+#school-map .K-Wing-Class {
+    margin-top: 260px;
+    margin-left: -17px;
+}
+
+#school-map .Outside {
+    margin-top: 480px;
+    margin-left: 550px;
+}
+
+#building-map {
+    width: 550px;
+    height: 450px;
+    background: url("../img/side.jpg") no-repeat
+}
+
+#building-map input {
+    width: 30px;
+    height: 30px;
+    margin-left: 157px;
+    background-color: #f44336;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 12px;
+    border: 1px solid #d5d5d5;
+}
+
+#building-map .floor-6-Class {
+    margin-top: 60px;
+}
+
+#building-map .floor-5-Class {
+    margin-top: 7px;
+}
+
+#building-map .floor-4-Class {
+    margin-top: 7px;
+}
+
+#building-map .floor-3-Class {
+    margin-top: 7px;
+}
+
+#building-map .floor-2-Class {
+    margin-top: 6px;
+}
+
+#building-map .floor-1-Class {
+    margin-top: 3px;
+}
+
+#building-map .floor-B1-Class {
+    margin-top: 7px;
+}
+
+#building-map .floor-B2-Class {
+    margin-top: 5px;
+}
+
+#floor-map {
+    width: 1200px;
+    height: 1000px;
+    background: url("../img/1st floor radio mac address.png") no-repeat
+}
+
+#floor-map input {
+    width: 30px;
+    height: 30px;
+    margin-left: 157px;
+    background-color: #f44336;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 12px;
+    border: 1px solid #d5d5d5;
+}
+
+#floor-map .room-1-Class {
+    margin-left: 780px;
+    margin-top: 220px;
+}
+
+#go_back {
+    width: 40px;
+    height: 40px;
+    background-color: white;
+    position: absolute;
+    left: 10px;
+    top: 50px;
+    background-image: url("../img/icons8-logout-rounded-left-50.png");
+    background-size: 40px 40px;
+}
+
+@media(max-width:540px){ h1 { font-size:30px; } }

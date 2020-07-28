@@ -1,0 +1,56 @@
+#school-map {
+    width: 1050px;
+    height: 900px;
+    background: url("../img/1st floor radio mac address.png") no-repeat
+}
+
+#school-map input {
+    width: 42px;
+    height: 42px;
+    background-color: #f44336;
+    border-radius: 50%;
+    float: left;
+    text-align: center;
+    font-size: 12px;
+    border: 1px solid #d5d5d5;
+}
+#school-map .A-Wing-Class{
+    margin-top: 300px;
+    margin-left: 355px;
+}
+
+#school-map .G-Wing-Class{
+    margin-top: 577px;
+    margin-left: -34px;
+}
+#school-map .B-Wing-Class{
+    margin-top: 372px;
+    margin-left: 1px;
+}
+
+#school-map .E-Wing-Class{
+    margin-top: 493px;
+    margin-left: 45px;
+}
+
+#school-map .D-Wing-Class{
+    margin-top: 349px;
+    margin-left: 32px;
+}
+
+#school-map .C-Wing-Class{
+    margin-top: 496px;
+    margin-left: -15px;
+}
+#school-map .H-Wing-Class{
+    margin-top: 287px;
+    margin-left: 10px;
+}
+#school-map .J-Wing-Class{
+    margin-top: 328px;
+    margin-left: 77px;
+}
+#school-map .K-Wing-Class{
+    margin-top: 260px;
+    margin-left: -17px;
+}

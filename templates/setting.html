@@ -1,8 +1,181 @@
 {% extends "layout.html" %}
 
 {% block main_content %}
-    <h1>Setting</h1>
-    <div id="main-content" class="htmleaf-container">
+    <div class="container-fluid">
+        <div id="hidebg"></div>
+        <div class="row">
+            <div class="main">
+                <h1 class="page-header">Setting</h1>
+                <br>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="panel panel-primary">
+                            <div class="panel-heading ">Current Usage - {{ train_mode }} - {{ test_mode }}
+                                - {{ combination_mode }}
+                                - {{ type_mode }}</div>
+                            <div class="panel-body">
+                                <table id="rooms" class="table table-striped">
+                                    <thead>
+                                    <tr>
+                                        <th>Building</th>
+                                        <th>Floor</th>
+                                        <th>Best Combination</th>
+                                        <th>Average Success Rate</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="building_list">
+                                    {% for building in building_list %}
+                                        {% for floor in building.floors %}
+                                            <tr>
+                                                <td>{{ building.building_name }}</td>
+                                                <td>{{ floor.floor_id }}</td>
+                                                <td>{{ floor.matrix.id }}</td>
+                                                <td>{{ floor.matrix.average_matrix_success_rate }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div class="form-inline" style="display: flex">
+                                    <select id="train_mode" class="form-control" style="flex: 1">
+                                        <option>SVM</option>
+                                        <option>NNv4</option>
+                                        <option>kNNv1</option>
+                                        <option>kNNv2</option>
+                                        <option>kNNv3</option>
+                                    </select>
+                                    <select id="test_mode" class="form-control" style="flex: 1">
+                                        <option>SVM</option>
+                                        <option>NNv4</option>
+                                        <option>kNNv1</option>
+                                        <option>kNNv2</option>
+                                        <option>kNNv3</option>
+                                    </select>
+                                    <select id="selection_mode" class="form-control" style="flex: 1">
+                                        <option>JC</option>
+                                        <option>GD</option>
+                                        <option>Random</option>
+                                        <option>MaxMean</option>
+                                    </select>
+                                    <select id="type_mode" class="form-control" style="flex: 1">
+                                        <option>Mix</option>
+                                        <option>AP</option>
+                                        <option>Beacon</option>
+                                    </select>
+                                    <select id="fold_mode" class="form-control" style="flex: 1">
+                                        <option value="3">3-Fold</option>
+                                        <option value="5">5-Fold</option>
+                                        <option value="10">10-Fold</option>
+                                        <option value="0">No-Fold</option>
+                                    </select>
+                                    <select id="num_combination" class="form-control" style="flex: 1">
+                                        <option>1 combinations</option>
+                                        <option>2 combinations</option>
+                                        <option>3 combinations</option>
+                                    </select>
+                                    <input class="btn btn-primary" style="flex: 1" type="button" onclick="train_data()"
+                                           value="Train Data
+                                        >>"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div class="col-md-6">
+                        <div class="panel panel-primary">
+                            <div class="panel-heading">Combination List</div>
+                            <div class="panel-body">
+                                <ul class="nav nav-pills nav-stacked" role="tablist">
+                                    {% for building in building_list %}
+                                        {% for floor in building.floors %}
+                                            <li role="presentation">
+                                                <a class="alert alert-info" onclick="file_download(this)">
+                                                    <span class="badge pull-right">New</span>
+                                                    {{ building.building_name }}_{{ floor.floor_id }}_{{ floor.matrix.combination_mode }}_{{ floor.matrix.location_mode }}
+                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!--/.row-->
+        </div>
+        <div id="hidebox">
+            <span onClick="hide()" style="cursor:pointer;">Close</span>
+            <div class="spinner">
+                <h1>Loading</h1>
+                <div class="rect1"></div>
+                <div class="rect2"></div>
+                <div class="rect3"></div>
+                <div class="rect4"></div>
+                <div class="rect5"></div>
+            </div>
+        </div>
     </div>
+{% endblock %}
+{% block script %}
+    <link rel="stylesheet" href="../static/css/load.css">
+    <script type="text/javascript">
+        function train_data() {
+            console.log("Clicked!");
+            let selection_mode = $("#selection_mode option:selected").val();
+            let fold_mode = $("#fold_mode option:selected").val();
+            let type_mode = $("#type_mode option:selected").val();
+            let train_mode = $("#train_mode option:selected").val();
+            let test_mode = $("#test_mode option:selected").val();
+            let num_split = fold_mode[0]
+            let num_combination = $("#num_combination option:selected").val();
+            num_combination = num_combination[0]
+
+            if (selection_mode === "{{ selection_mode }}" && test_mode === "{{ test_mode }}" && num_combination === "{{ num_combination }}"
+                && type_mode === "{{ type_mode }}" && train_mode === "{{ train_mode }}" && fold_mode === "{{ fold_mode }}") {
+                console.log("NO Change")
+            } else {
+                show()
+                $.ajax(
+                    {
+                        type: "POST",
+                        url: "/setting",
+                        dataType: 'json',
+                        data: {
+                            "selection_mode": selection_mode,
+                            "type_mode": type_mode,
+                            "train_mode": train_mode,
+                            "test_mode": test_mode,
+                            "num_combination": num_combination,
+                            "num_splits": num_split
+                        },
+                        success: function (data) {
+                            hide();
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            console.log(error);
+                        }
+                    });
+            }
+        }
+
+        function show()  //显示隐藏层和弹出层
+        {
+            let hideobj = document.getElementById("hidebg");
+            hideobj.style.display = "block";  //显示隐藏层
+            //hidebg.style.height=document.body.clientHeight+"px";  //设置隐藏层的高度为当前页面高度
+            document.getElementById("hidebox").style.display = "block";  //显示弹出层
+        }
+
+        function hide()  //去除隐藏层和弹出层
+        {
+            document.getElementById("hidebg").style.display = "none";
+            document.getElementById("hidebox").style.display = "none";
+        }
+
+        function file_download(e) {
+
+        }
+    </script>
 {% endblock %}

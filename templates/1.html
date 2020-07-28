@@ -1,129 +1,34 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>弹出窗口后，后面的层不可操作</title>
-    <script src="/static/js/jquery-2.1.4.min.js"></script>
-    <script>
-        function show()  //显示隐藏层和弹出层
-        {
-            var hideobj = document.getElementById("hidebg");
-            hidebg.style.display = "block";  //显示隐藏层
-            //hidebg.style.height=document.body.clientHeight+"px";  //设置隐藏层的高度为当前页面高度
-            document.getElementById("hidebox").style.display = "block";  //显示弹出层
-        }
-
-        function hide()  //去除隐藏层和弹出层
-        {
-            document.getElementById("hidebg").style.display = "none";
-            document.getElementById("hidebox").style.display = "none";
-        }
-    </script>
-    <style>
-        #hidebg {
-            position: absolute;
-            left: 0px;
-            top: 0px;
-            background-color: #000;
-            width: 100%; /*宽度设置为100%，这样才能使隐藏背景层覆盖原页面*/
-            height: 100%;
-            filter: alpha(opacity=60); /*设置透明度为60%*/
-            opacity: 0.6; /*非IE浏览器下设置透明度为60%*/
-            display: none;
-            z-Index: 2;
-        }
-
-        #hidebox {
-            text-align: right;
-            position: absolute;
-            width: 400px;
-            height: 300px;
-            top: 200px;
-            left: 30%;
-            border-radius: 5px;
-            background-color: #fff;
-            display: none;
-            z-Index: 3;
-            padding: 10px;
-        }
-
-        #content {
-            text-align: center;
-            cursor: pointer;
-            z-Index: 1;
-        }
-                .spinner {
-            margin: 100px auto;
-            width: 50px;
-            height: 60px;
-            text-align: center;
-            font-size: 10px;
-        }
-
-        .spinner > div {
-            background-color: #67CF22;
-            height: 100%;
-            width: 6px;
-            display: inline-block;
-
-            -webkit-animation: stretchdelay 1.2s infinite ease-in-out;
-            animation: stretchdelay 1.2s infinite ease-in-out;
-        }
-
-        .spinner .rect2 {
-            -webkit-animation-delay: -1.1s;
-            animation-delay: -1.1s;
-        }
-
-        .spinner .rect3 {
-            -webkit-animation-delay: -1.0s;
-            animation-delay: -1.0s;
-        }
-
-        .spinner .rect4 {
-            -webkit-animation-delay: -0.9s;
-            animation-delay: -0.9s;
-        }
-
-        .spinner .rect5 {
-            -webkit-animation-delay: -0.8s;
-            animation-delay: -0.8s;
-        }
-
-        @-webkit-keyframes stretchdelay {
-            0%, 40%, 100% {
-                -webkit-transform: scaleY(0.4)
-            }
-            20% {
-                -webkit-transform: scaleY(1.0)
-            }
-        }
-
-        @keyframes stretchdelay {
-            0%, 40%, 100% {
-                transform: scaleY(0.4);
-                -webkit-transform: scaleY(0.4);
-            }
-            20% {
-                transform: scaleY(1.0);
-                -webkit-transform: scaleY(1.0);
-            }
-        }
-    </style>
+    <title>响应式表格布局</title>
+    <link rel="stylesheet" type="text/css" href="../static/css/begin.css" />
 </head>
 <body>
-<div id="hidebg"></div>
-<div id="hidebox">
-    <span onClick="hide();" style="cursor:pointer;">关闭</span>
-    <div class="spinner">
-    <div class="rect1"></div>
-    <div class="rect2"></div>
-    <div class="rect3"></div>
-    <div class="rect4"></div>
-    <div class="rect5"></div>
-</div>
-</div>
-
-<div id="content" onClick="show();">点击打开</div>
+    <h1>课程</h1>
+    <table class="responsive">
+        <thead>
+        <tr>
+            <th>程序序号</th>
+            <th>课程名称</th>
+            <th>课程操作</th>
+        </tr>
+        </thead>
+        <tr>
+            <td class="number">150406</td>
+            <td class="name">移动应用开发</td>
+            <td class="actions">
+                <a href="#">修改</a><a href="del">删除</a>
+            </td>
+        </tr>
+        <tr>
+            <td class="number">150407</td>
+            <td class="name">HTML前段开发</td>
+            <td class="actions">
+                <a href="#">修改</a><a href="del">删除</a>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

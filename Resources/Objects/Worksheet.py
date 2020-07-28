@@ -9,27 +9,29 @@ class Worksheet:
                  date_subset: List[str],
                  error_mode: str,
                  combination_mode: str,
+                 location_mode: str,
                  normalized_probability_matrices: List[NormalizedMatrix],
                  normalized_combined_matrices: List[NormalizedMatrix],
                  test_results: Dict[NormalizedMatrix, TestResult]):
 
-        self.__title = ""       # type: str
-        self.__tab_title = ""   # type: str
+        self.__title = ""  # type: str
+        self.__tab_title = ""  # type: str
         self.__num_combinations = num_combinations
         self.__date_subset = date_subset
         self.__error_mode = error_mode
         self.__combination_mode = combination_mode
+        self.__location_mode = location_mode
         self.__normalized_probability_matrices = normalized_probability_matrices
         self.__normalized_combined_matrices = normalized_combined_matrices
         self.__test_results = test_results
-        self.__column_width = self.__normalized_combined_matrices[0].size    # type: int
+        self.__column_width = self.__normalized_combined_matrices[0].size  # type: int
 
         self.__headers = ["Normalized Probability Distributions", "Normalized Combined Distributions", "Test Results"]
 
     @property
     def title(self) -> str:
         if self.__title == "":
-            self.__title = "{} Combinations - {} - {} Error Mode - {} Combination Mode".format(
+            self.__title = "{} Combinations - {} - {} Error Mode - {} Combination Mode - {} Location Mode".format(
                 self.__num_combinations,
                 str(self.__date_subset)
                     .replace("[", "")
@@ -37,14 +39,15 @@ class Worksheet:
                     .replace("'", "")
                     .replace("November ", "N"),
                 self.__error_mode,
-                self.__combination_mode)
+                self.__combination_mode,
+                self.__location_mode)
 
         return self.__title
 
     @property
     def tab_title(self) -> str:
         if self.__tab_title == "":
-            self.__tab_title = "{}C-{}-{} Err-{} Com".format(
+            self.__tab_title = "{}C-{}-{} Err-{} Com - {} Loc".format(
                 self.__num_combinations,
                 str(self.__date_subset)
                     .replace("[", "")
@@ -53,7 +56,8 @@ class Worksheet:
                     .replace("November ", "")
                     .replace(" ", ""),
                 self.__error_mode,
-                self.__combination_mode)
+                self.__combination_mode,
+                self.__location_mode)
 
             if len(self.__tab_title) > 31:
                 self.__tab_title = self.__tab_title[:30]
@@ -118,9 +122,6 @@ class Worksheet:
         sheet.write(2, norm_horiz_spacing * 2 + 1, "Normalized Combined Distributions", bold)
         sheet.write(2, test_horizontal_spacing, "Test Results", bold)
 
-        # Sort the normalized matrices:
-        sort_matrices(self.__normalized_probability_matrices)
-        sort_matrices(self.__normalized_combined_matrices)
 
         # Write the probability distribution columns:
         for index, normalized_distribution in enumerate(self.__normalized_probability_matrices):
@@ -130,7 +131,7 @@ class Worksheet:
             # Probability distributions:
             for row, value_list in enumerate(probability_distribution.csv_list):
                 for col, val in enumerate(value_list):
-                    if row == 0:    # Matrix Header
+                    if row == 0:  # Matrix Header
                         sheet.write(row + 3 + matrix_vertical_spacing * index, col, val, bold)
                     else:
                         sheet.write(row + 3 + matrix_vertical_spacing * index, col, val)
@@ -138,7 +139,7 @@ class Worksheet:
             # Normalized probability distributions:
             for row, value_list in enumerate(normalized_distribution.csv_list):
                 for col, val in enumerate(value_list):
-                    if row == 0:    # Matrix Header
+                    if row == 0:  # Matrix Header
                         sheet.write(row + 3 + matrix_vertical_spacing * index, col + norm_horiz_spacing, val, bold)
                     else:
                         sheet.write(row + 3 + matrix_vertical_spacing * index, col + norm_horiz_spacing, val)
@@ -148,18 +149,17 @@ class Worksheet:
         for index, distribution in enumerate(self.__normalized_combined_matrices):
             for row, value_list in enumerate(distribution.csv_list):
                 for col, val in enumerate(value_list):
-                    if row == 0:    # Matrix Header
+                    if row == 0:  # Matrix Header
                         sheet.write(row + 3 + matrix_vertical_spacing * index,
                                     col + norm_horiz_spacing + 1, val, bold)
                     else:
                         sheet.write(row + 3 + matrix_vertical_spacing * index,
                                     col + norm_horiz_spacing + 1, val)
 
-        #JC-01 add code to report 2nd guess accuracy
+        # JC-01 add code to report 2nd guess accuracy
         # Write the test result column:
-        for index, distribution in enumerate(self.__normalized_combined_matrices):
-            result = self.__test_results[distribution]
-
+        for distribution, result in self.__test_results.items():
+            index = list(self.__test_results.keys()).index(distribution)
             # Num tests ran:
             sheet.write(3 + matrix_vertical_spacing * index,
                         test_horizontal_spacing,
@@ -201,7 +201,6 @@ class Worksheet:
             with2 = 0
             percentage_eq = '=INDIRECT(ADDRESS(ROW()-1, COLUMN()))/INDIRECT(ADDRESS(ROW()-2,COLUMN()))'
             for zone, zone_results in result.answer_details.items():
-
                 # Zone Numbers:
                 sheet.write(5 + matrix_vertical_spacing * index,
                             test_horizontal_spacing + zone.num, str(zone))
@@ -226,7 +225,8 @@ class Worksheet:
                 # Zone correct percentage:
                 sheet.write(11 + matrix_vertical_spacing * index,
                             test_horizontal_spacing + zone.num,
-                            (zone_results["times_correct"] + zone_results["times_2nd_correct"]) / zone_results["times_tested"])
+                            (zone_results["times_correct"] + zone_results["times_2nd_correct"]) / zone_results[
+                                "times_tested"])
 
                 # No. of success including the 2nd times
                 with2 = with2 + zone_results["times_correct"] + zone_results["times_2nd_correct"]
@@ -236,4 +236,7 @@ class Worksheet:
                         "Overall Percentage with 2nd Correct:")
             sheet.write(12 + matrix_vertical_spacing * index,
                         test_horizontal_spacing + 1,
-                        with2/result.tests_ran)
+                        with2 / result.tests_ran)
+
+
+

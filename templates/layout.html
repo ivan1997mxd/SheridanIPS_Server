@@ -12,42 +12,42 @@
     <link rel="stylesheet" href="../static/css/bootstrap-3.3.5.min.css">
     <link rel="stylesheet" href="../static/css/bootstrap-vertical-menu.css">
     <link rel="stylesheet" href="../static/css/font-awesome-4.4.0.min.css">
-    <link rel="stylesheet" href="../static/css/dash.css">
+    <link rel="stylesheet" media="screen and (max-width:768px)" href="../static/css/phone-layout.css" />
+	<link rel="stylesheet" media="screen and (min-width:768px)" href="../static/css/phone-layout.css" />
+	<link rel="stylesheet" media="screen and (min-width:1024px)" href="../static/css/desktop-layout.css" />
+	<link rel="stylesheet" media="screen and (min-width:1200px)" href="../static/css/desktop-layout.css" />
+    {% block script %}{% endblock %}
 </head>
 
 <body style="background-color: initial;">
 
-<div style="margin: 30px 40px;">
-    <!-- Main Content Area -->
-    <div class="container container-box">
-        <div class="main clearfix">
-            <!-- navigate left side bar -->
-            <nav id="nav" class="navbar navbar-vertical-left" onmousemove="resizeContent(1)"
-                 onmouseout="resizeContent(2)">
-                <ul class="nav navbar-nav" style="height: 200px;">
-                    <li><a href="/home">
-                        <i class="fa fa-fw fa-lg fa-home"></i><span>Sheridan</span></a>
-                    </li>
-                    <li><a href="/update">
-                        <i class="fa fa-fw fa-lg fa-location-arrow"></i><span>Map</span></a>
-                    </li>
-                    <li><a href="/setting"><i class="fa fa-fw fa-lg fa-cog"></i><span>Setting</span></a>
-                    </li>
-                    <li><a href="/wifi">
-                        <i class="fa fa-fw fa-lg fa-list"></i><span>Wifi List</span></a>
-                    </li>
-                    <li><a href="/login">
-                        <i class="fa fa-fw fa-lg fa-sign-out"></i><span>Sign Out</span></a>
-                    </li>
-                </ul>
-            </nav>
-
-            <!-- main content container -->
-            {% block main_content %}{% endblock %}
-        </div>
+<!-- Main Content Area -->
+<div class="container container-box">
+    <div class="main clearfix">
+        <!-- navigate left side bar -->
+        <nav id="nav" class="navbar navbar-vertical-left" onmousemove="resizeContent(1)"
+             onmouseout="resizeContent(2)">
+            <ul class="nav navbar-nav" style="height: 30%">
+                <li><a href="/">
+                    <i class="fa fa-fw fa-lg fa-home"></i><span>Sheridan</span></a>
+                </li>
+                <li><a href="/map">
+                    <i class="fa fa-fw fa-lg fa-location-arrow"></i><span>Map</span></a>
+                </li>
+                <li><a href="/task">
+                    <i class="fa fa-fw fa-lg fa-list"></i><span>Task</span></a>
+                </li>
+                <li><a href="/me">
+                    <i class="fa fa-fw fa-lg fa-user"></i><span>My</span></a>
+                </li>
+                <li><a href="/logout">
+                    <i class="fa fa-fw fa-lg fa-sign-out"></i><span>Sign Out</span></a>
+                </li>
+            </ul>
+        </nav>
+        <!-- main content container -->
+        {% block main_content %}{% endblock %}
     </div>
 </div>
-<!-- script -->
-{% block script %}{% endblock %}
 </body>
 </html>

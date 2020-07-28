@@ -2,7 +2,7 @@
 
 {% block main_content %}
     {#    <meta http-equiv="refresh" content="3">#}
-    <h1>Students List</h1>
+    <h1>Scan List</h1>
     <div id="main-content" class="htmleaf-container">
         <div style="padding-left: 93%;">
             <a type="button" class="btn btn-primary" href="/location">
@@ -81,7 +81,7 @@
                     var rowLength = $("#wifi_list tr").length + 1;
                     console.log(res);
                     var $tr = $("<tr>" +
-                        "<td>" + rowLength + "</td>" +
+                        "<td>" + res.Index + "</td>" +
                         "<td>" + res.Actual_Zone + "</td>" +
                         "<td>" + res.Primary_Zone + "</td>" +
                         "<td>" + res.Secondary_Zone + "</td>" +

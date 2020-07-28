@@ -28,8 +28,8 @@ class Point(ABC):
         return self.__Num
 
     @property
-    def point(self) -> (float, float, float):
-        return self.__X, self.__Y, self.__Z
+    def point(self) -> (float, float):
+        return self.__X, self.__Y
 
     @property
     def x(self) -> float:

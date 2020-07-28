@@ -1,30 +1,38 @@
 from Resources.Objects.Matrices.ProbabilityDistribution import ProbabilityMatrix
 from Resources.Objects.Matrices.Matrix import Matrix
+from Resources.Objects.Points.AccessPoint import AccessPoint
 from Resources.Objects.Zone import Zone
 from Resources.Objects.TestData import Sample
 from typing import List, Iterable, Tuple, Union, Dict
 
 
 class NormalizedMatrix(Matrix):
-
-    error_mode = ""     # type: str
-    theAnswer = ""      # JC-01 - used to hold the sample actual zone - sample.answer
+    error_mode = ""  # type: str
+    combination_mode = ""
+    location_mode = ""
+    train_mode = ""
+    test_mode = ""
+    type_mode = ""
+    theAnswer = ""  # JC-01 - used to hold the sample actual zone - sample.answer
 
     # region Constructor
     def __init__(self, matrix: Matrix, combine_ids: bool = False):
         super(NormalizedMatrix, self).__init__(access_points=matrix.access_points, zones=matrix.zones, size=matrix.size)
 
-        self.__parent_matrix = matrix               # type: Matrix
-        self.__csv_list = None                      # type: Union[None, List[List[str]]]
-        self.__average_matrix_error = -1            # type: float
-        self.__average_matrix_success = -1          # type: float
-        self.__normalize_matrix(matrix)
+        self.__parent_matrix = matrix  # type: Matrix
+        self.__csv_list = None  # type: Union[None, List[List[str]]]
+        self.__average_matrix_error = -1  # type: float
+        self.__average_matrix_success = -1  # type: float
+        self.__normalize_matrix(matrix)  # type: Matrix
+        self.__access_points_combo = []  # type: List[Tuple[AccessPoint]]
 
         if combine_ids:
             Str = ""
             for child in self.__parent_matrix.normalizations:
                 Str += child.id + " U "
+                self.__access_points_combo.append(child.access_points_tuple)
             self.id = Str[:-3]
+
     # endregion
 
     # region Properties
@@ -44,13 +52,22 @@ class NormalizedMatrix(Matrix):
     def average_matrix_success(self) -> float:
         return 1 - self.average_matrix_error
 
+    @property
+    def average_matrix_success_rate(self) -> str:
+        percentage = round(((1 - self.average_matrix_error) * 100), 2)
+        return str(percentage) + "%"
+
+    @property
+    def access_points_combo(self) -> List[Tuple[AccessPoint]]:
+        return self.__access_points_combo
+
     # region Overrides:
     @property
     def csv_list(self) -> List[List[str]]:
         if self.__csv_list is not None:
             return self.__csv_list
 
-        csv_list = list()   # type: List[List[str]]
+        csv_list = list()  # type: List[List[str]]
         csv_list.append(["Access Point Combination: " + self.id])
         csv_list.append(["Zones"] + [str(x) for x in self.zones] + ["Error"] + ["Success"])
 
@@ -65,36 +82,38 @@ class NormalizedMatrix(Matrix):
         self.__csv_list = csv_list
 
         return csv_list
+
     # endregion
 
     @property
     def parent_matrix(self) -> Matrix:
         return self.__parent_matrix
+
     # endregion
 
     # region Private Methods
-    #JC - cross-relation
+    # JC - cross-relation
     @classmethod
     def __get_vector_error(cls, measured_zone: Zone, vector: Dict[Zone, float]) -> float:
         m = max(vector.values())
         a = vector[measured_zone]
         if NormalizedMatrix.error_mode == "DGN":
-            return 1 - a #vector[measured_zone]
+            return 1 - a  # vector[measured_zone]
         elif NormalizedMatrix.error_mode == "MAX":
-            return 1 - a #vector[measured_zone] #max(vector.values())
+            return 1 - a  # vector[measured_zone] #max(vector.values())
 
         raise NotImplementedError("Error mode {} is unknown".format(NormalizedMatrix.error_mode))
 
     @staticmethod
     def get_vector_success(measured_zone: Zone, vector: Dict[Zone, float]) -> float:
         # TODO: Re-implement this and get_vector_error properly.
-        #return 1 - NormalizedMatrix.__get_vector_error(measured_zone, vector)
+        # return 1 - NormalizedMatrix.__get_vector_error(measured_zone, vector)
         m = max(vector.values())
         a = vector[measured_zone]
         if NormalizedMatrix.error_mode == "DGN":
-            return a #vector[measured_zone]
+            return a  # vector[measured_zone]
         elif NormalizedMatrix.error_mode == "MAX":
-            return m #vector[measured_zone] #max(vector.values())
+            return m  # vector[measured_zone] #max(vector.values())
 
         raise NotImplementedError("Error mode {} is unknown".format(NormalizedMatrix.error_mode))
 
@@ -107,7 +126,8 @@ class NormalizedMatrix(Matrix):
                 if row_sum == 0:
                     self.set_value(measured_zone=measured_zone, actual_zone=actual_zone, value=0)
                 else:
-                    self.set_value(measured_zone=measured_zone, actual_zone=actual_zone, value=value/row_sum)
+                    self.set_value(measured_zone=measured_zone, actual_zone=actual_zone, value=value / row_sum)
+
     # endregion
 
     # region Comparison Operators
@@ -122,10 +142,15 @@ class NormalizedMatrix(Matrix):
 
     def __ge__(self, other):
         return True if self.average_matrix_error >= other.average_matrix_error else False
+
     # endregion
 
     def test(self, sample: Sample) -> bool:
         pass
+
+
+def build_normalized_distribution(probability_distribution: ProbabilityMatrix) -> NormalizedMatrix:
+    return build_normalized_distributions([probability_distribution])[0]
 
 
 def build_normalized_distributions(probability_distributions: List[ProbabilityMatrix]) -> List[NormalizedMatrix]:

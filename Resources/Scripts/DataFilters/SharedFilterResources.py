@@ -4,7 +4,7 @@ from typing import List
 rmacs = ["10:bd:18:c6:b7:a0", "70:0f:6a:c8:29:40", "70:0f:6a:de:ba:60", "70:0f:6a:de:c1:40"]
 dates = ["November 19", "November 20", "November 21", "November 23"]
 times = ["15_00", "17_00", "19_00"]
-point_types = ["Center", "Grid Point", "Off-Center"]
+point_types = ["Center of Zone of Zone of Zone of Zone of Zone", "Grid Point", "Off-Center of Zone of Zone of Zone of Zone of Zone"]
 
 
 class __ScanValue:

@@ -1,5 +1,5 @@
 import csv
-from Resources.Objects.Points.GridPoint import GridPoint
+from Resources.Objects.Points.GridPoint_RSSI import GridPoint
 from Resources.Objects.Points.Point import Point
 
 
@@ -27,11 +27,12 @@ class Centroid(Point):
         # Selection sort
         for i in range(len(self.CornerPoints)):
             min_index = i
-            for j in range(i+1, len(self.CornerPoints)):
+            for j in range(i + 1, len(self.CornerPoints)):
                 if self.CornerPoints[min_index] > self.CornerPoints[j]:
                     min_index = j
 
             self.CornerPoints[i], self.CornerPoints[min_index] = self.CornerPoints[min_index], self.CornerPoints[i]
+
     # endregion
 
     # region Override Methods
@@ -59,4 +60,16 @@ class Centroid(Point):
                 points.append(Centroid(central, top_left, top_right, bottom_left, bottom_right))
 
         return points
+
     # endregion
+    @classmethod
+    def create_point(cls, cd: dict, gp_list: list):
+        central = gp_list[int(cd['central']) - 1]
+        top_left = gp_list[int(cd['top_left']) - 1]
+        top_right = gp_list[int(cd['top_right']) - 1]
+        bottom_left = gp_list[int(cd['bottom_left']) - 1]
+        bottom_right = gp_list[int(cd['bottom_right']) - 1]
+
+        points = Centroid(central, top_left, top_right, bottom_left, bottom_right)
+
+        return points

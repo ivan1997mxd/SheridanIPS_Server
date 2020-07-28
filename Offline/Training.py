@@ -174,7 +174,7 @@ def automate_matrix_build(dates: List[List[str]],
 
     # Start saving the workbook:
     excel_start_time = time()
-    excel_workbook = xlsxwriter.Workbook("{}/Matrices/Results.xlsx".format(main_folder))
+    excel_workbook = xlsxwriter.Workbook("{}/Matrices/Results_old.xlsx".format(main_folder))
     bold = excel_workbook.add_format({'bold': True})
     merge_format = excel_workbook.add_format({'bold': True, 'align': 'center'})
 

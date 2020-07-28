@@ -1,4 +1,4 @@
-from src.Resources.Scripts.DataFilters.SharedFilterResources import __ScanValue
+from .SharedFilterResources import __ScanValue
 from typing import List, Dict
 import csv
 
@@ -38,3 +38,4 @@ def rmac_filter_data(raw_data_file_path: str, rmacs: List[str]) -> Dict[str, __S
     #         row += [x for x in scan.rssis]
     #
     #         writer.writerow(row)
+

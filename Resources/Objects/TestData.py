@@ -1,10 +1,16 @@
+from kombu.utils import nested
 from Resources.Objects.Points.AccessPoint import AccessPoint
 from Resources.Objects.Zone import Zone
 from os.path import join, isfile
 from os import listdir
 from math import floor
 from typing import List, Dict
+import pymongo
 import csv
+from flask_pymongo import PyMongo
+
+client = pymongo.MongoClient("localhost", 27017)
+db = client.SheridanIPS
 
 
 class Sample:
@@ -94,6 +100,21 @@ class TestResult:
     def tests_ran(self) -> int:
         return self.__total_tests
 
+    # region Comparison Operators
+    def __lt__(self, other):
+        return True if self.accuracy < other.accuracy else False
+
+    def __le__(self, other):
+        return True if self.accuracy <= other.accuracy else False
+
+    def __gt__(self, other):
+        return True if self.accuracy > other.accuracy else False
+
+    def __ge__(self, other):
+        return True if self.accuracy >= other.accuracy else False
+
+    # endregion
+
     # JC-01 - add code to support 2nd guess information
     def record(self, zone: Zone, vector: Dict[Zone, float]) -> None:
         self.__total_tests += 1
@@ -154,7 +175,7 @@ def create_test_data_list(access_points: List[AccessPoint],
     for date in dates:
         for time in times:
 
-            sub_folder = "{}{}/{}/Center/".format(folder_path, date, time)
+            sub_folder = "{}/{}/{}/Center of Zone/".format(folder_path, date, time)
 
             data_files = [f for f in listdir(sub_folder) if isfile(join(sub_folder, f))]
 
@@ -181,10 +202,10 @@ def create_test_data_list(access_points: List[AccessPoint],
 
                         if len(rssis) > longest_rssis:
                             longest_rssis = len(rssis)
-
                 for index in range(longest_rssis):
 
                     ap_rssi_dict = dict()  # type: Dict[AccessPoint, int]
+                    ap_rssi_dict_str = dict()  # type: Dict[str, int]
 
                     for key, rssis in bssid_rssi_dict.items():
 
@@ -198,15 +219,55 @@ def create_test_data_list(access_points: List[AccessPoint],
                             if key == access_point.id:
                                 try:
                                     ap_rssi_dict[access_point] = rssis[index]
+                                    ap_rssi_dict_str[access_point.id] = rssis[index]
                                 except IndexError:
                                     # Hit because this AP may not have enough RSSI values. Append the average.
                                     ap_rssi_dict[access_point] = floor(sum(rssis) / len(rssis))
-
+                                    ap_rssi_dict_str[access_point.id] = floor(sum(rssis) / len(rssis))
                                 found = True
                                 break
-
-                        if not found:
-                            raise Exception("WTF")
+                            else:
+                                pass
 
                     samples.append(Sample(answer, ap_rssi_dict))
+
+    return samples
+
+
+def create_from_db(access_points: List[AccessPoint],
+                   zones: List[Zone], offline_data: list):
+    samples = list()  # type: List[Sample]
+    for z in offline_data:
+        zone_data = z['zone_data']
+        zone_num = z['zone_num']
+        answer = zones[int(zone_num[-1]) - 1]
+        for zd in zone_data:
+            bssid_rssi_dict = dict()  # type: Dict[str, List[int]]
+            longest_rssis = 0
+            for bssid, rssis in zd.items():
+                bssid_rssi_dict[bssid] = rssis
+                if len(rssis) > longest_rssis:
+                    longest_rssis = len(rssis)
+            for index in range(longest_rssis):
+
+                ap_rssi_dict = dict()  # type: Dict[AccessPoint, int]
+
+                for key, rssis in bssid_rssi_dict.items():
+
+                    if len(rssis) == 0:
+                        continue
+
+                    for access_point in access_points:
+
+                        if key == access_point.id:
+                            try:
+                                ap_rssi_dict[access_point] = rssis[index]
+                            except IndexError:
+                                # Hit because this AP may not have enough RSSI values. Append the average.
+                                ap_rssi_dict[access_point] = floor(sum(rssis) / len(rssis))
+                            break
+                        else:
+                            pass
+
+                samples.append(Sample(answer, ap_rssi_dict))
     return samples

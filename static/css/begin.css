@@ -1,0 +1,85 @@
+h1 {
+    font-size: 30px;
+    text-align: center;
+    color: #666666;
+}
+
+
+table.responsive {
+    width: 98%;
+    margin: 0 auto;
+    border: 1px solid #666666;
+    border-collapse: collapse;
+    -webkit-box-shadow: 0 0 10px rgba(0, 0, 0, .6);
+    -moz-box-shadow: 0 0 10px rgba(0, 0, 0, .6);
+    box-shadow: 0 0 10px rgba(0, 0, 0, .6);
+}
+
+
+table.responsive th, table.responsive td {
+    border: 1px solid #666666;
+    padding: .5em 1em;
+}
+
+
+table.responsive th {
+    background: #35B558;
+}
+
+
+table.responsive .actions a {
+    color: #ff5c00;
+    text-decoration: none;
+    padding: 0 4px;
+}
+
+table.responsive .number, table.responsive .actions {
+    text-align: center;
+}
+
+
+@media (max-width: 480px) {
+    table.responsive {
+        -webkit-box-shadow: none;
+        -moz-box-shadow: none;
+        box-shadow: none;
+        border: none;
+    }
+
+    table.responsive thead {
+        display: none;
+    }
+
+
+    table.responsive td {
+        display: block;
+        border: none;
+    }
+    table.responsive .number {
+        text-align: left;
+        background: #35B558;
+    }
+
+    table.responsive .number:before {
+        content: '课程序号';
+        padding-right: 20px;
+        font-weight: bold;
+    }
+
+    table.responsive .name:before {
+        content: '课程名称';
+        padding-right: 20px;
+        font-weight: bold;
+    }
+
+    table.responsive tr {
+        position: relative;
+    }
+
+    table.responsive .actions {
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+}

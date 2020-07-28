@@ -1,0 +1,292 @@
+{% extends "layout.html" %}
+
+{% block script %}
+    <link rel="stylesheet" href="../static/css/location.css">
+    <link rel="stylesheet" href="../static/css/drag.css">
+    <script type="text/javascript" src="//cdn.bootcss.com/socket.io/1.5.1/socket.io.min.js"></script>
+    <link rel="stylesheet" href="../static/css/switch.css">
+    <link rel="stylesheet" href="../static/css/map.css">
+    <script src="../static/js/drag.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            let zone_map = $("#zone-map");
+            let floor_map = $("#floor-map");
+            zone_map.on("click", "#go_back", function (event) {
+                console.log("yes");
+                floor_map.css("display", "block");
+                zone_map.css("display", "none");
+                $("#drag").css({"width": "1100px", "height": "650px"})
+            })
+        });
+
+        function filter_building(key) {
+            let table = $("#my");
+            let rowsLength = $("#wifi_list tr").length + 1;
+            for (let i = 1; i < rowsLength; i++) {
+                let building = table.rows[i].cells[2].innerHTML;
+                if (building.match(key)) {
+                    table.rows[i].style.display = '';
+                } else {
+                    table.rows[i].style.display = "none";
+                }
+            }
+        }
+
+        function show_map() {
+            let SCAET = 0;
+            let HOME = 0;
+            let table = $("#my");
+            let rowsLength = $("#wifi_list tr").length + 1;
+            if (rowsLength === 1) {
+                console.log("Empty");
+                return
+            }
+            console.log(table.rows[1].cells[1].innerHTML);
+            for (let i = 1; i < rowsLength; i++) {
+                console.log(i);
+                let building = table.rows[i].cells[2].innerHTML;
+                console.log(building);
+                {#let floor = table.rows[i].cells[3].innerHTML;#}
+                {#let room = table.rows[i].cells[4].innerHTML;#}
+                {#let zone = table.rows[i].cells[5].innerHTML;#}
+                if (building.match("SCAET")) {
+                    SCAET += 1;
+                } else if (building.match("HOME")) {
+                    HOME += 1;
+                }
+            }
+            $("#SCAET").val(SCAET.toString());
+            $("#Home").val(HOME.toString());
+
+        }
+
+        $(document).ready(function () {
+            {#show_map();#}
+            {#let buildings ={{ building_data|tojson }};#}
+            namespace = '/test';
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+            socket.on('message', function (res) {
+                if (res) {
+                    var rowLength = $("#wifi_list tr").length;
+                    console.log(res);
+                    var $tr = $("<tr>" +
+                        "<td>" + res.Id + "</td>" +
+                        "<td>" + res['Name'] + "</td>" +
+                        "<td>" + res.Building + "</td>" +
+                        "<td>" + res.Floor + "</td>" +
+                        "<td>" + res.Room + "</td>" +
+                        "<td>" + res.Zone + "</td>"
+                    );
+                    $("#wifi_list").append($tr);
+                    {#let building = parseInt(document.getElementById(res.Building).innerHTML);#}
+                    {#let floor = parseInt(document.getElementById(res.Building + "-" + res.Floor).innerHTML);#}
+                    {#let room = parseInt(document.getElementById(res.Room).innerHTML);#}
+                    {#let zone = parseInt(document.getElementById(res.Zone).innerHTML);#}
+                    {#building += 1;#}
+                    {#floor += 1;#}
+                    {#room += 1;#}
+                    {#document.getElementById(res.Building).innerHTML = building;#}
+                    $('#Map1').attr("src", "/static/img/test1.jpg" + "?" + Math.random());
+                    $('#Map2').attr("src", "/static/img/test2.jpg" + "?" + Math.random());
+                }
+            });
+        });
+        $(function () {
+            let school_map = $("#school-map");
+            let building_map = $("#building-map");
+            let table = $("#my");
+            school_map.on("click", ":button", function (event) {
+                let building = this.id;
+                let users = this.value;
+                console.log(building);
+                if (!table.empty()) {
+                    filter_building(building);
+                    let floor_list = {};
+                    for (let i = 1; i < $("#wifi_list tr").length; i++) {
+                        let floor = table.rows[i].cells[3].innerHTML;
+                        if (floor in floor_list) {
+                            floor_list[floor] += 1;
+                        } else {
+                            floor_list[floor] = 1;
+                        }
+                    }
+                    for (let key in floor_list) {
+                        document.getElementById(key).innerText = floor_list[key];
+                    }
+                }
+                school_map.css("display", "none");
+                building_map.css("display", "block");
+                $("#drag").css({"width": "580px", "height": "450px"})
+            });
+        });
+
+        $(function () {
+            let school_map = $("#school-map");
+            let floor_map = $("#floor-map");
+            let building_map = $("#building-map");
+            building_map.on("click", ":button", function (event) {
+                let floor = this.id;
+                let users = this.value;
+                console.log(floor);
+                if (floor === "1") {
+                    building_map.css("display", "none");
+                    let $floor = $("<a id='go_back'></a>" +
+                        "<input type='button' id='room-1' class='room-1-Class' value='1'/>"
+                    );
+                    floor_map.append($floor);
+                    floor_map.css("display", "block");
+                    $("#drag").css({"width": "1100px", "height": "650px"})
+                }
+            });
+            building_map.on("click", "#go_back", function (event) {
+                console.log("yes");
+                building_map.children().remove();
+                school_map.css("display", "block");
+                building_map.css("display", "none");
+                $("#drag").css({"width": "1000px", "height": "800px"})
+            })
+        });
+        $(function () {
+            let floor_map = $("#floor-map");
+            let zone_map = $("#zone-map");
+            let building_map = $("#building-map");
+            floor_map.on("click", ":button", function (event) {
+                let room = this.id;
+                let users = this.value;
+                console.log(room);
+                if (room === "room-1") {
+                    floor_map.css("display", "none");
+                    zone_map.css("display", "block");
+                    $("#drag").css({"width": "1000px", "height": "600px"})
+                }
+            });
+            floor_map.on("click", "#go_back", function (event) {
+                console.log("yes");
+                floor_map.children().remove();
+                building_map.css("display", "block");
+                floor_map.css("display", "none");
+                $("#drag").css({"width": "580px", "height": "450px"})
+            })
+        });
+
+        function trigger() {
+            let send_request = $('#send_request');
+            let state = send_request.is(":checked");
+            let data = {"answer": state}
+            $.ajax(
+                {
+                    type: "POST",
+                    url: "/map",
+                    data: data,
+                    dataType: 'json',
+                    success: function (data) {
+                        console.log(data);
+                    },
+                    error: function (xhr, status, error) {
+                        console.log(error);
+                    }
+                });
+        }
+
+
+        function toggle() {
+            let detailSwitch = $("#details");
+            let img1 = $("#Map1");
+            let img2 = $("#Map2");
+            if (detailSwitch.prop("checked") === true) {
+                img1.css('display', 'block');
+                img2.css('display', 'none');
+            } else {
+                img2.css('display', 'block');
+                img1.css('display', 'none');
+            }
+        }
+
+        function show() {
+            document.getElementById('drag').style.display = "";
+        }
+
+        function hide() {
+            document.getElementById('drag').style.display = "none";
+        }
+
+
+    </script>
+{% endblock %}
+
+{% block main_content %}
+    <h1>Student Position</h1>
+    <label class="switch">
+        <input type="checkbox" id="send_request" onclick="trigger()">
+        <span class="slider round"></span>
+    </label>
+    <div id="main-content" class="htmleaf-container">
+        <a class="open" id="open" href="javascript:" title="revert" style="display: none"></a>
+        <div class="table-responsive">
+            <table id="my" class="table table-hover" data-toggle="table">
+                <thead>
+                <tr>
+                    <th id="Id">Id<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th id="Name">Name<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th id="Building">Building<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th id="Floor">Floor<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th id="Room">Room<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                    <th id="Zone">Zone<i class="fa fa-fw fa-sm fa-sort"></i></th>
+                </tr>
+                </thead>
+                <tbody id="wifi_list">
+                {% for item in position_data %}
+                    <tr>
+                        {% for key, value in item.items() %}
+                            <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="drag" hidden>
+            <div class="title">
+                <h2>Map</h2>
+                <div>
+                    <a class="min" href="javascript:" title="MIN"></a>
+                    <a class="max" href="javascript:" title="MAX"></a>
+                    <a class="revert" href="javascript:" title="REVERT"></a>
+                    <a class="close" href="javascript:" onclick="hide()" title="CLOSE"></a>
+                </div>
+            </div>
+            <div class="resizeL"></div>
+            <div class="resizeT"></div>
+            <div class="resizeR"></div>
+            <div class="resizeB"></div>
+            <div class="resizeLT"></div>
+            <div class="resizeTR"></div>
+            <div class="resizeBR"></div>
+            <div class="resizeLB"></div>
+            <div class="content">
+                <div id="school-map">
+                    <input type="button" id="SCAET" class="A-Wing-Class" value="0"/>
+                    <input type="button" id="HOME" class="Outside" value="0"/>
+                </div>
+                <div id="building-map" style="display: none">
+                    <a id="go_back"></a>
+                    <input type="button" id="6" class="floor-6-Class" value="0"/>
+                    <input type="button" id="5" class="floor-5-Class" value="0"/>
+                    <input type="button" id="4" class="floor-4-Class" value="0"/>
+                    <input type="button" id="3" class="floor-3-Class" value="0"/>
+                    <input type="button" id="2" class="floor-2-Class" value="0"/>
+                    <input type="button" id="1" class="floor-1-Class" value="0"/>
+                    <input type="button" id="B1" class="floor-B1-Class" value="0"/>
+                    <input type="button" id="B2" class="floor-B2-Class" value="0"/>
+                </div>
+                <div id="floor-map" style="display: none">
+                </div>
+                <div id="zone-map" style="display: none">
+                    <a id="go_back"></a>
+                    <img id="Map1" src="/static/img/test.jpg" style="display: none" border="0" alt=""/>
+                    <img id="Map2" src="/static/img/test.jpg" border="0" alt=""/>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

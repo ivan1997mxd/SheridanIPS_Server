@@ -31,6 +31,10 @@ class Matrix(ABC):
         return self.__access_points
 
     @property
+    def access_points_tuple(self) -> Tuple[AccessPoint, ...]:
+        return tuple(self.__access_points)
+
+    @property
     def zones(self) -> List[Zone]:
         return self.__zones
 

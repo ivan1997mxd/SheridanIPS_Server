@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+
+{% block main_content %}
+    <div class="container-fluid">
+        <div class="row">
+            <form class="main">
+                <h1 class="page-header">Room Details</h1>
+                <div class="row">
+
+                    <div class="col-md-6">
+                        <div class="row">
+                            <!--代表格的面板-->
+                            <div class="panel panel-primary">
+                                <!-- Default panel contents -->
+                                <div class="panel-heading">Room Information</div>
+                                <div class="panel-body">
+                                    <div class="form-group">
+                                        <label for="room_number">Room Number</label>
+                                        <input type="text" class="form-control" id="room_number"
+                                               value="{{ room.num }}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="room_floor">Room Floor</label>
+                                        <input type="text" class="form-control" id="room_floor"
+                                               value="{{ room.floor }}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="room_building">Room Building</label>
+                                        <input type="text" class="form-control" id="room_floor"
+                                               value="{{ room.building }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="panel panel-primary">
+                                    <div class="panel-heading">Access Points</div>
+                                    <div class="panel-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                            <tr>
+                                                <th>Num</th>
+                                                <th>Mac Address</th>
+                                                <th>Coordinate</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {% for ap in room.access_points %}
+                                                <tr>
+                                                    <td>{{ ap.num }}</td>
+                                                    <td>{{ ap.id }}</td>
+                                                    <td>{{ ap.point }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="panel panel-primary">
+                                    <div class="panel-heading">Zones</div>
+                                    <div class="panel-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Top Left</th>
+                                                <th>Bottom Right</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {% for zone in room.zones %}
+                                                <tr>
+                                                    <td>{{ zone }}</td>
+                                                    <td>{{ zone.top_left }}</td>
+                                                    <td>{{ zone.bottom_right }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="panel panel-primary">
+                                <div class="panel-heading">Room Map</div>
+                                <div class="panel-body">
+                                    <img id="Map" src="/static/img/test.jpg" border="0" alt=""/>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="submit" class="btn btn-primary" value="Save" style="float: right"/>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+{% block script %}
+    <script type="text/javascript">
+        $(".custom-file-input").on("change", function () {
+            var fileName = $(this).val().split("\\").pop();
+            $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
+        });
+    </script>
+{% endblock %}

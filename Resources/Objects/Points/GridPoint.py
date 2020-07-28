@@ -6,8 +6,8 @@ import csv
 
 class GridPoint(Point):
 
-    def __init__(self, id: str, num: int, ple_vals: Dict[AccessPoint, float], x: float, y: float, z: int = 0):
-        super(GridPoint, self).__init__(id=id, num=num, x=x, y=y, z=z)
+    def __init__(self, id: str, ple_vals: Dict[AccessPoint, float], x: float, y: float, z: int = 0):
+        super(GridPoint, self).__init__(id=id, x=x, y=y, z=z)
         self.__pleValues = ple_vals     # type: Dict[AccessPoint, float]
         self.__distance: float = -1
 
@@ -57,6 +57,27 @@ class GridPoint(Point):
         self.__distance = -1
 
     @classmethod
+    def create_point_list_db(cls, gp_list: list, ap_list:list) -> list:
+        points = list()
+        for gp in gp_list:
+            point_num = int(gp['gpnum'])
+            x_val = float(gp['x'])
+            y_val = float(gp['y'])
+
+            ple_vals = dict()
+            for ap in ap_list:
+                if ap.id == str(gp['ap1']):
+                    ple_vals[ap] = float(gp['ple1'])
+                if ap.id == str(gp['ap2']):
+                    ple_vals[ap] = float(gp['ple2'])
+                if ap.id == str(gp['ap3']):
+                    ple_vals[ap] = float(gp['ple3'])
+                if ap.id == str(gp['ap4']):
+                    ple_vals[ap] = float(gp['ple4'])
+            points.append(GridPoint(id=str(point_num), x=x_val, y=y_val, ple_vals=ple_vals))
+        return points
+
+    @classmethod
     def create_point_list(cls, file_path: str, *args, **kwargs) -> list:
         assert len(args) == 0, "Grid Points are unable to accept variable arguments."
         assert "access_points" in kwargs.keys(), "You must pass a list of Access Points."
@@ -85,7 +106,7 @@ class GridPoint(Point):
                         if ap.id == ap_bssid:
                             ple_vals[ap] = float(ple)
 
-                points.append(GridPoint(id=str(point_num), num=int(point_num), x=x_val, y=y_val, ple_vals=ple_vals))
+                points.append(GridPoint(id=str(point_num), x=x_val, y=y_val, ple_vals=ple_vals))
 
         return points
     # endregion
