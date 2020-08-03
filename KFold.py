@@ -3,7 +3,7 @@ from time import time
 
 from sklearn.model_selection import KFold
 import numpy as np
-from math import floor
+from math import floor, log
 from random import shuffle, choice
 from typing import Callable, Dict
 
@@ -35,6 +35,7 @@ def create_compare_combination(num_splits: int,
                                combination_mode: str,
                                location_mode: str,
                                num_combinations: int,
+                               mm_ap_dict: dict,
                                data: List[Sample],
                                combine: bool,
                                centroids: List[Centroid],
@@ -60,12 +61,14 @@ def create_compare_combination(num_splits: int,
     accuracy_check = dict()  # type: Dict[Tuple[AccessPoint, ...], List[svm_model]]
     best_gd_models = dict()  # type: Dict[Tuple[AccessPoint, ...], Tuple[NormalizedMatrix, List[svm_model]]]
     best_jc_models = dict()  # type: Dict[Tuple[AccessPoint, ...], Tuple[NormalizedMatrix, Dict[Tuple[AccessPoint, ...], List[svm_model]]]]
+    ig_models = list()
     end_initialize_time = time()
     initialize_time = end_initialize_time - start_initialize_time
     # print("initialize time: {}s.".format(initialize_time))
     jc_time += initialize_time
     gd_time += initialize_time
     for train_indices, test_indices in split_kf:
+
         start_data_time = time()
         print("Starting Fold {} with {}.".format(fold_number, location_mode))
 
@@ -84,16 +87,14 @@ def create_compare_combination(num_splits: int,
             train_features.append(data[num].scan)
             train_classes.append(data[num].answer.num)
 
-        order_list = list()
-        for classes in train_classes:
-            if classes not in order_list:
-                order_list.append(classes)
-
         for num in test_indices:
             test_samples.append(data[num])
             test_features.append(data[num].scan)
             test_classes.append(data[num].answer.num)
 
+        # info gain selection
+        ig_model = choose_best_info_gain(train_samples, access_points)
+        ig_models.append(ig_model)
         d = 2
         trained_models = list()  # type: List[IndividualModel]
         end_data_time = time()
@@ -231,27 +232,18 @@ def create_compare_combination(num_splits: int,
         # print("--- Working on AP Combination: {}.".format(ap_tuple))
         start_average_time = time()
         distributions_to_average = list()  # type: List[NormalizedMatrix]
+        svms_to_store = list()  # type: List[svm_model]
+        for fold in folds.values():
+            distributions_to_average.append(fold.get_normalized_distribution(ap_tuple))
+            svms_to_store.append(fold.get_SVM(ap_tuple))
+        averaged_normalized_distribution = Fold.get_average_distribution(access_points=[*ap_tuple],
+                                                                         zones=zones,
+                                                                         distributions=distributions_to_average)
         if location_mode == "SVM":
-
-            svms_to_store = list()  # type: List[svm_model]
-            for fold in folds.values():
-                distributions_to_average.append(fold.get_normalized_distribution(ap_tuple))
-                svms_to_store.append(fold.get_SVM(ap_tuple))
-            # Get the average normalized distribution:
-            averaged_normalized_distribution = Fold.get_average_distribution(access_points=[*ap_tuple],
-                                                                             zones=zones,
-                                                                             distributions=distributions_to_average)
-
             averaged_normalized_distributions[ap_tuple] = averaged_normalized_distribution, svms_to_store
             # print("--- Completed. {} Normalizations, and {} SVMs have been stored."
             #       .format(len(distributions_to_average), len(svms_to_store)))
         else:
-            for fold in folds.values():
-                distributions_to_average.append(fold.get_normalized_distribution(ap_tuple))
-            averaged_normalized_distribution = Fold.get_average_distribution(access_points=[*ap_tuple],
-                                                                             zones=zones,
-                                                                             distributions=distributions_to_average)
-
             averaged_normalized_distributions[ap_tuple] = averaged_normalized_distribution
         end_average_time = time()
         average_time = end_average_time - start_average_time
@@ -259,6 +251,12 @@ def create_compare_combination(num_splits: int,
         jc_time += average_time
     print("Completed. There are {} Normalized Distributions ready for combination."
           .format(len(averaged_normalized_distributions.values())))
+
+    best_ig_model = list()
+    for i in range(len(access_points)):
+        ap_list = [model[i] for model in ig_models]
+        best_ig_model.append(max(ap_list, key=ap_list.count))
+
     if location_mode == "SVM":
         # Build Combined Distributions.
         # final_containers = build_jc_combined_distributions(
@@ -294,7 +292,7 @@ def create_compare_combination(num_splits: int,
         gd_model_time = end_gd_model_time - start_gd_model_time
         gd_time += gd_model_time
         print("JC Time is {}, GD time is {} when location mode is SVM".format(jc_time, gd_time))
-        return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check
+        return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check, best_ig_model
     else:
         start_jc_model_time = time()
 
@@ -305,12 +303,17 @@ def create_compare_combination(num_splits: int,
                                       len(normalized_dist.access_points) == i)
             jc_ap_tuple = best_normalization.access_points_tuple
             best_jc_models[jc_ap_tuple] = best_normalization, {jc_ap_tuple: accuracy_check[jc_ap_tuple]}
-        if combine:
+        if combine and len(access_points) >= 4:
             list_svm_model = list()
             best_combined_matrixs = list()
-            for num_combinations in range(2, 5):
+
+            mm_normalized_list = [normalized_matrix for normalized_matrix in
+                                  list(averaged_normalized_distributions.values()) if
+                                  normalized_matrix.access_points in list(mm_ap_dict.values())]
+            sort_matrices(mm_normalized_list)
+            for num_combinations in range(2, 4):
                 combined_distributions, normalized_combined_distributions = build_combined_distributions(
-                    normalized_distributions=averaged_normalized_list,
+                    normalized_distributions=mm_normalized_list,
                     training_data=data,
                     centroids=centroids,
                     grid_points=grid_points,
@@ -354,7 +357,7 @@ def create_compare_combination(num_splits: int,
         gd_model_time = end_gd_model_time - start_gd_model_time
         gd_time += gd_model_time
         print("JC Time is {}, GD time is {} when location mode is not SVM".format(jc_time, gd_time))
-        return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check
+        return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check, best_ig_model
 
 
 def gd_approach(num_splits: int,
@@ -715,3 +718,52 @@ def create_kflod_combination(train_mode: str,
             best_d_model = accuracy_check[ap_set]
             best_gd_models[ap_set] = best_matrix, best_d_model
         return best_gd_models
+
+
+def calc_shannon_ent(training_data: List[Sample]):
+    num_entries = len(training_data)  # 返回数据集的行数
+    zone_counts = {}  # 保存每个标签(Label)出现次数的字典
+    for data in training_data:  # 对每组特征向量进行统计
+        current_zone = data.answer  # 提取标签(Label)信息
+        if current_zone not in zone_counts.keys():  # 如果标签(Label)没有放入统计次数的字典,添加进去
+            zone_counts[current_zone] = 0
+        zone_counts[current_zone] += 1  # Label计数
+    shannon_ent = 0.0  # 经验熵(香农熵)
+    for key in zone_counts:  # 计算香农熵
+        prob = float(zone_counts[key]) / num_entries  # 选择该标签(Label)的概率
+        shannon_ent -= prob * log(prob, 2)  # 2 or e
+    return shannon_ent  # 返回经验熵(香农熵)
+
+
+def split_data_set(training_data: List[Sample], ap: AccessPoint, value: int):
+    ret_data_list = []  # 创建返回的数据集列表
+    for data in training_data:  # 遍历数据集
+        ap_set = data.scan
+        if ap in ap_set:
+            if ap_set[ap] == value:
+                new_set = {i: ap_set[i] for i in ap_set if i != ap}
+                ret_data_list.append(Sample(data.answer, new_set))  # 去掉axis特征
+        else:
+            ret_data_list.append(Sample(data.answer, ap_set))
+    return ret_data_list  # 返回划分后的数据集
+
+
+def choose_best_info_gain(training_data: List[Sample], access_points: List[AccessPoint]):
+    info_gain_dict = dict()
+    base_entropy = calc_shannon_ent(training_data)  # 计算数据集的香农熵
+    print("base entropy is {}".format(base_entropy))
+    for ap in access_points:  # 遍历所有特征
+        # 获取dataSet的第i个所有特征
+        rssi_list = [data.scan[ap] for data in training_data if ap in data.scan]
+        unique_rssi = set(rssi_list)  # 创建set集合{},元素不可重复
+        new_entropy = 0.0  # 经验条件熵
+        for value in unique_rssi:  # 计算信息增益
+            sub_data_set = split_data_set(training_data, ap, value)  # subDataSet划分后的子集
+            prob = len(sub_data_set) / float(len(training_data))  # 计算子集的概率
+            new_entropy += prob * calc_shannon_ent(sub_data_set)  # 根据公式计算经验条件熵
+        info_gain = base_entropy - new_entropy  # 信息增益
+        info_gain_dict[ap] = info_gain
+        print("AP:%s:%.3f" % (ap.num, info_gain))  # 打印每个特征的信息增益
+
+    return sorted(info_gain_dict.keys(),
+                  key=info_gain_dict.get, reverse=True)

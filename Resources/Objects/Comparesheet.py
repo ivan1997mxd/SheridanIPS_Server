@@ -59,7 +59,7 @@ class Comparesheet:
                 self.__train_data,
                 self.__test_data,
                 self.__error_mode,
-                len(self.__combination_modes),
+                len(self.__specific_modes),
                 len(self.__tables.values()))
 
         return self.__title
@@ -131,11 +131,11 @@ class Comparesheet:
         for index, table in self.__tables.items():
             jc_win = 0
             gd_win = 0
-            rd_win = 0
+            ig_win = 0
             mm_win = 0
             gd_avg_win = 0
             jc_avg_win = 0
-            rd_avg_win = 0
+            ig_avg_win = 0
             mm_avg_win = 0
             draw = 0
             avg_draw = 0
@@ -146,28 +146,28 @@ class Comparesheet:
             gd_col = index * horizontal_gap + 2
             jc_col = index * horizontal_gap + 5
             mm_col = index * horizontal_gap + 10
-            rd_col = index * horizontal_gap + 8
+            ig_col = index * horizontal_gap + 8
             gd_tables = table[0]
             jc_tables = table[1]
             mm_tables = table[2]
-            rd_tables = table[3]
+            ig_tables = table[3]
             for modes, gd_tuple in gd_tables.items():
                 table_chart = book.add_chart({'type': 'column'})
-                table_num = self.__combination_modes.index(modes)
+                table_num = self.__specific_modes.index(modes)
                 mode_name = modes[0] + "-" + modes[1]
                 jc_tuple = jc_tables[modes]
                 mm_tuple = mm_tables[modes]
-                rd_tuple = rd_tables[modes]
+                ig_tuple = ig_tables[modes]
                 jc_results = jc_tuple[0]
                 gd_results = gd_tuple[0]
                 mm_results = mm_tuple[0]
-                rd_results = rd_tuple[0]
+                ig_results = ig_tuple[0]
                 gd_train_time = gd_tuple[2]
                 gd_test_time = gd_tuple[1]
                 jc_train_time = jc_tuple[2]
                 jc_test_time = jc_tuple[1]
                 mm_time = mm_tuple[1]
-                rd_time = rd_tuple[1]
+                ig_time = ig_tuple[1]
                 # first Row
                 sheet.write(table_num * vertical_gap + 2, index * horizontal_gap, "{}".format(mode_name), bold)
                 sheet.merge_range(table_num * vertical_gap + 2, index * horizontal_gap + 1,
@@ -180,7 +180,7 @@ class Comparesheet:
 
                 sheet.merge_range(table_num * vertical_gap + 2, index * horizontal_gap + 7,
                                   table_num * vertical_gap + 2, index * horizontal_gap + 8,
-                                  "Random Method",
+                                  "InfoGain Method",
                                   merge_format)
                 sheet.merge_range(table_num * vertical_gap + 2, index * horizontal_gap + 9,
                                   table_num * vertical_gap + 2, index * horizontal_gap + 10,
@@ -204,14 +204,14 @@ class Comparesheet:
                 length = num_ap
                 mm_values = list()
                 mm_keys = list()
-                rd_keys = list()
-                rd_values = list()
+                ig_keys = list()
+                ig_values = list()
                 gd_keys = list()
                 gd_values = list()
                 jc_keys = list()
                 jc_values = list()
-                if modes[0] != "SVM" and modes[0] == modes[1] and index != 2:
-                    length += 3
+                # if modes[0] != "SVM" and modes[0] == modes[1] and index != 2:
+                #     length += 3
                 row_start = table_num * vertical_gap + 4
                 gd_row_end = table_num * vertical_gap + 2 + num_ap
                 jc_row_end = table_num * vertical_gap + 2 + length
@@ -239,10 +239,10 @@ class Comparesheet:
                             sheet.write(table_num * vertical_gap + 3 + d - 1, index * horizontal_gap + 6,
                                         "{}s".format(round(jc_test_time[d - 2], 4)), bold)
                         mm_result = mm_results[d - 2]
-                        rd_result = rd_results[d - 2]
-                        for key, value in rd_result.items():
-                            rd_keys.append(key)
-                            rd_values.append(value)
+                        ig_result = ig_results[d - 2]
+                        for key, value in ig_result.items():
+                            ig_keys.append(key)
+                            ig_values.append(value)
                             sheet.write(table_num * vertical_gap + 3 + d - 1, index * horizontal_gap + 7,
                                         "{}".format(key), bold)
                             sheet.write(table_num * vertical_gap + 3 + d - 1, index * horizontal_gap + 8,
@@ -276,16 +276,16 @@ class Comparesheet:
                 best_jc_value = max(jc_values)
                 best_jc_key = jc_keys[jc_values.index(best_jc_value)]
 
-                best_rd_avg = np.mean(rd_values)
-                best_rd_value = max(rd_values)
-                best_rd_key = rd_keys[rd_values.index(best_rd_value)]
+                best_ig_avg = np.mean(ig_values)
+                best_ig_value = max(ig_values)
+                best_ig_key = ig_keys[ig_values.index(best_ig_value)]
 
                 best_mm_avg = np.mean(mm_values)
                 best_mm_value = max(mm_values)
                 best_mm_key = mm_keys[mm_values.index(best_mm_value)]
 
-                best_method = [best_gd_value, best_jc_value, best_rd_value, best_mm_value]
-                best_avg_method = [best_gd_avg, best_jc_avg, best_rd_avg, best_mm_avg]
+                best_method = [best_gd_value, best_jc_value, best_ig_value, best_mm_value]
+                best_avg_method = [best_gd_avg, best_jc_avg, best_ig_avg, best_mm_avg]
                 winner = [best_method.index(w) for w in best_method if w == max(best_method)]
                 avg_winner = [best_avg_method.index(a) for a in best_avg_method if a == max(best_avg_method)]
                 if len(winner) == 1:
@@ -294,7 +294,7 @@ class Comparesheet:
                     elif winner[0] == 1:
                         jc_win += 1
                     elif winner[0] == 2:
-                        rd_win += 1
+                        ig_win += 1
                     else:
                         mm_win += 1
                 else:
@@ -305,7 +305,7 @@ class Comparesheet:
                     elif avg_winner[0] == 1:
                         jc_avg_win += 1
                     elif avg_winner[0] == 2:
-                        rd_avg_win += 1
+                        ig_avg_win += 1
                     else:
                         mm_avg_win += 1
                 else:
@@ -324,9 +324,9 @@ class Comparesheet:
                 sheet.write(table_num * vertical_gap + 2 + length + 1, index * horizontal_gap + 6,
                             "{}s".format(round(sum(jc_test_time), 4)), bold)
                 sheet.write(table_num * vertical_gap + 2 + length + 1, index * horizontal_gap + 7,
-                            "{}".format(best_rd_key), bold)
+                            "{}".format(best_ig_key), bold)
                 sheet.write(table_num * vertical_gap + 2 + length + 1, index * horizontal_gap + 8,
-                            round(best_rd_value * 100, 4), bold)
+                            round(best_ig_value * 100, 4), bold)
                 sheet.write(table_num * vertical_gap + 2 + length + 1, index * horizontal_gap + 9,
                             "{}".format(best_mm_key), bold)
                 sheet.write(table_num * vertical_gap + 2 + length + 1, index * horizontal_gap + 10,
@@ -349,7 +349,7 @@ class Comparesheet:
                     'name': [self.__tab_title, table_num * vertical_gap + 2, index * horizontal_gap + 7],
                     'categories': [self.__tab_title, row_start, index * horizontal_gap, gd_row_end,
                                    index * horizontal_gap],
-                    'values': [self.__tab_title, row_start, rd_col, gd_row_end, rd_col],
+                    'values': [self.__tab_title, row_start, ig_col, gd_row_end, ig_col],
                 })
                 table_chart.add_series({
                     'name': [self.__tab_title, table_num * vertical_gap + 2, index * horizontal_gap + 9],
@@ -366,21 +366,21 @@ class Comparesheet:
             chart_sheet.write(2, index * 8, "Comparison Table", bold)
             chart_sheet.write(2, index * 8 + 1, "GD Approach", bold)
             chart_sheet.write(2, index * 8 + 2, "JC Method", bold)
-            chart_sheet.write(2, index * 8 + 3, "Random", bold)
+            chart_sheet.write(2, index * 8 + 3, "InfoGain", bold)
             chart_sheet.write(2, index * 8 + 4, "MaxMean", bold)
             chart_sheet.write(2, index * 8 + 5, "Draw", bold)
 
             chart_sheet.write(3, index * 8, "Win single", bold)
             chart_sheet.write(3, index * 8 + 1, gd_win, bold)
             chart_sheet.write(3, index * 8 + 2, jc_win, bold)
-            chart_sheet.write(3, index * 8 + 3, rd_win, bold)
+            chart_sheet.write(3, index * 8 + 3, ig_win, bold)
             chart_sheet.write(3, index * 8 + 4, mm_win, bold)
             chart_sheet.write(3, index * 8 + 5, draw, bold)
 
             chart_sheet.write(4, index * 8, "Win avg", bold)
             chart_sheet.write(4, index * 8 + 1, gd_avg_win, bold)
             chart_sheet.write(4, index * 8 + 2, jc_avg_win, bold)
-            chart_sheet.write(4, index * 8 + 3, rd_avg_win, bold)
+            chart_sheet.write(4, index * 8 + 3, ig_avg_win, bold)
             chart_sheet.write(4, index * 8 + 4, mm_avg_win, bold)
             chart_sheet.write(3, index * 8 + 5, avg_draw, bold)
             #     gd_chart.add_series({

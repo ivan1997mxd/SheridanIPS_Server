@@ -100,7 +100,8 @@
                                     </tr>
                                     </tbody>
                                 </table>
-                                <p><a class="btn btn-primary" href="#" role="button">Check Map>><span></span></a>
+                                <p><a class="btn btn-primary" href="#" role="button" onclick="compare_data()">Check
+                                    Map>><span></span></a>
                                 </p>
                             </div>
                         </div>
@@ -140,25 +141,20 @@
 {% endblock %}
 {% block script %}
     <script type="text/javascript">
-        $("#Zone1").click(function () {
-            window.location.href = "Zone/1";
-            console.log("clicked!");
-        });
-        $("#Zone2").click(function () {
-            window.location.href = "Zone/2";
-            console.log("clicked!");
-        });
-        $("#Zone3").click(function () {
-            window.location.href = "Zone/3";
-            console.log("clicked!");
-        });
-        $("#Zone4").click(function () {
-            window.location.href = "Zone/4";
-            console.log("clicked!");
-        });
-        $("#Zone5").click(function () {
-            window.location.href = "Zone/5";
-            console.log("clicked!");
-        })
+        function compare_data() {
+            $.ajax(
+                {
+                    type: "POST",
+                    url: "/home",
+                    dataType: 'json',
+                    data: {
+                    },
+                    success: function (data) {
+                    },
+                    error: function (xhr, status, error) {
+                        console.log(error);
+                    }
+                });
+        }
     </script>
 {% endblock %}
