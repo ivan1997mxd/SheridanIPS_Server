@@ -1,11 +1,9 @@
 import ast
-import functools
 import json
 import operator
 import os
-import re
 import shutil
-import winsound
+import simpleaudio as sa
 from collections import OrderedDict
 from datetime import timedelta, datetime
 from math import floor
@@ -34,7 +32,8 @@ from Algorithms.svm.svmutil import svm_predict
 from Resources.Objects.Building import Building
 from Resources.Objects.Comparesheet import Comparesheet
 from Resources.Objects.Floor import Floor
-from Resources.Objects.Matrices.CombinedDistribution import test_combination_matrices, test_svm_matrices
+from Resources.Objects.Matrices.CombinedDistribution import test_combination_matrices, test_svm_matrices, \
+    test_normalized_dict
 from Resources.Objects.Matrices.NormalizedDistribution import NormalizedMatrix, sort_matrices
 from Algorithms.Combination.Combination import get_combination_function, build_combined_distributions
 from Resources.Objects.Matrices.ProbabilityDistribution import ProbabilityMatrix
@@ -133,6 +132,26 @@ room_list = []
 # training_data = list()  # type: List[Sample]
 # testing_data = list()  # type: List[Sample]
 
+def define_data(data: List[Sample], aps: List[AccessPoint]):
+    floor_ap = dict()
+    for ap in aps:
+        min = 0
+        max = 0
+        data_list = list()
+        for d in data:
+            if ap in d.scan:
+                if data.index(d) == 0:
+                    min = d.scan[ap]
+                    max = d.scan[ap]
+                if d.scan[ap] > max:
+                    max = d.scan[ap]
+                if d.scan[ap] < min:
+                    min = d.scan[ap]
+                data_list.append(d.scan[ap])
+        avg = floor(mean(data_list))
+        floor_ap[ap] = (min, avg, max)
+    return floor_ap
+
 
 def random_data(floor: Floor, online_pct: float, samples: List[Sample]):
     online_samples = list()
@@ -151,6 +170,20 @@ def random_data(floor: Floor, online_pct: float, samples: List[Sample]):
     return online_samples, offline_samples
 
 
+def mse_calculation(actual_zones, predict_zones):
+    summation = 0  # variable to store the summation of differences
+    n = len(actual_zones)  # finding total number of items in list
+    for i in range(0, n):  # looping through each element of the list
+        actual_cood = actual_zones[i].center
+        predict_cood = predict_zones[i].center
+        squared_difference = (actual_cood[0] - predict_cood[0]) ** 2 + (
+                actual_cood[1] - predict_cood[1]) ** 2  # taking square of the differene
+        summation += math.sqrt(squared_difference)  # taking a sum of all the differences
+    MSE = summation / n  # dividing summation by total values to obtain average
+    # print("The Mean Square Error is: ", MSE)
+    return MSE
+
+
 def compare_methods(buildings: buildings,
                     num_combination: int,
                     combination_mode: str,
@@ -161,23 +194,26 @@ def compare_methods(buildings: buildings,
                     num_splits: int
                     ):
     compare_sheets = list()  # type: List[Comparesheet]
-
+    work_sheets = list()  # type: List[Worksheet]
+    data_results = dict()
     for building in buildings:
         if building.building_name == "SCAET":
-            break
+            continue
         for floor in building.floors:
-            # if floor.floor_id == "6":
+            # if floor.floor_id == "5":
             #     continue
             centroids = floor.get_centroids
             grid_points = floor.grid_points
-
+            full_ap_list = floor.access_points
             raw_data_1 = floor.data
+            data_result = define_data(raw_data_1, full_ap_list)
+            data_results[floor.floor_id] = data_result
             zones = floor.zones
             type_mode = ""
             # Set mode:
 
             print("get new Train data")
-            divide_data = random_data(floor, 0.5, raw_data_1)
+            divide_data = random_data(floor, 0.4, raw_data_1)
             testing_data = divide_data[0]
             training_data = divide_data[1]
             shuffle(training_data)
@@ -187,6 +223,7 @@ def compare_methods(buildings: buildings,
             ap_type = 0
             access_point_d = []
             combine = False
+
             while ap_type < 3:
                 if ap_type == 0:
                     combine = False
@@ -210,6 +247,7 @@ def compare_methods(buildings: buildings,
                 NormalizedMatrix.combination_mode = combination_mode
                 NormalizedMatrix.type_mode = type_mode
 
+                start_mm_time = time()
                 max_mean = dict()
                 best_ap = dict()
                 total_ap = dict()
@@ -217,28 +255,23 @@ def compare_methods(buildings: buildings,
                     max_zone = dict()
                     zone_scan = [sample.scan for sample in training_data if sample.answer == zone]
                     for ap in access_points:
-                        value_list = [scan[ap] for scan in zone_scan]
+                        value_list = [scan[ap] for scan in zone_scan if ap in scan]
                         mean_value = mean(value_list)
                         max_zone[ap] = mean_value
                     sorted_max_zone = sorted(max_zone.items(), key=lambda kv: kv[1], reverse=True)
                     sorted_max_zone = dict((key, value) for key, value in sorted_max_zone)
                     max_mean[zone] = sorted_max_zone
-                # for d in range(2, len(access_points) + 1):
-                #     best_d = dict()
-                #     for zone, rssis in max_mean.items():
-                #         ap_list = list(rssis.keys())
-                #         best_d[zone] = ap_list[:d]
-                #     best_ap[d] = best_d
                 for ap in access_points:
                     ap_list = [rssi[ap] for rssi in max_mean.values()]
                     mean_ap = mean(ap_list)
                     total_ap[ap] = mean_ap
                 sorted_total_ap = sorted(total_ap.items(), key=lambda kv: kv[1], reverse=True)
                 sorted_total_ap = [key for key, value in sorted_total_ap]
-                for d in range(2, len(access_points) + 1):
+                for d in range(3, len(access_points) + 1):
                     sorted_d_ap = sorted_total_ap[:d]
                     best_ap[d] = sorted(sorted_d_ap)
-
+                end_mm_time = time()
+                mm_training_time = end_mm_time - start_mm_time
                 print("The Access Points use: {}".format(access_points))
                 access_point_d.append(len(access_points))
                 gd_table_list = dict()
@@ -247,6 +280,7 @@ def compare_methods(buildings: buildings,
                 rd_table_list = dict()
                 ig_table_list = dict()
                 for location_mode in location_modes:
+                    testing_modes = ["SVM", "NNv4"]
                     NormalizedMatrix.train_mode = location_mode
                     print("starting training with {}".format(location_mode))
                     NormalizedMatrix.location_mode = location_mode
@@ -255,7 +289,7 @@ def compare_methods(buildings: buildings,
                                                                     combination_mode=combination_mode,
                                                                     location_mode=location_mode,
                                                                     num_combinations=num_combination,
-                                                                    data=training_data,
+                                                                    training_data=training_data,
                                                                     access_points=access_points,
                                                                     zones=zones,
                                                                     grid_points=grid_points,
@@ -267,189 +301,234 @@ def compare_methods(buildings: buildings,
                     jc_training_time = test_results[2]
                     best_ig_list = test_results[5]
                     svm_models = test_results[4]
+                    ig_training_time = test_results[6]
+                    normalized_dict = test_results[7]
+
+                    jc_test_results = test_normalized_dict(normalized_dict=normalized_dict,
+                                                           centroids=centroids,
+                                                           zones=zones,
+                                                           testing_data=testing_data)
+
+                    if ap_type == 2:
+                        # skip Beacon
+                        work_sheets.append(Worksheet(num_combinations=num_splits,
+                                                     error_mode="Max",
+                                                     building=building,
+                                                     floor=floor,
+                                                     ap_type=type_mode,
+                                                     combination_mode=combination_mode,
+                                                     location_mode=location_mode,
+                                                     normalized_probability_matrices=normalized_dict,
+                                                     test_results=jc_test_results))
                     test_features = list()  # type: List[Dict[AccessPoint, int]]
                     test_classes = list()  # type: List[int]
+                    actual_zone = list()
                     for sample in testing_data:
                         test_features.append(sample.scan)
+                        actual_zone.append(sample.answer)
                         test_classes.append(sample.answer.num)
                     combination_method = get_combination_function(combination_mode)
-                    testing_mode = location_mode
-                    # for testing_mode in testing_modes:
-                    fail_sample = dict()
-                    gd_correct = list()
-                    jc_correct = list()
-                    mm_correct = list()
-                    rd_correct = list()
-                    ig_correct = list()
-                    gd_testing_time = list()
-                    jc_testing_time = list()
-                    random_ap_tuple = dict()
-                    NormalizedMatrix.test_mode = testing_mode
-                    for d in range(2, len(access_points) + 1):
-                        access_point_combinations = get_n_ap_combinations(access_points,
-                                                                          d)  # type: List[Tuple[AccessPoint, ...]]
-                        random_ap_tuple[d] = choice(access_point_combinations)
-                    # print("starting testing with {}".format(testing_mode))
+                    if location_mode == "kNNv1" or location_mode == "kNNv2" or location_mode == "kNNv3":
+                        testing_modes = [location_mode]
+                    for testing_mode in testing_modes:
+                        gd_correct = list()
+                        jc_correct = list()
+                        mm_correct = list()
+                        rd_correct = list()
+                        ig_correct = list()
 
-                    for d, ap_list in best_ap.items():
-                        ap_tuple = tuple(sorted(ap_list))
-                        correct = 0
-                        for sample in testing_data:
-                            filter_sample = dict(
-                                (ap, rssi) for ap, rssi in sample.scan.items() if ap in access_points)
-                            # sorted_data = sorted(filter_sample.items(), key=lambda kv: kv[1], reverse=True)
-                            # selected_ap = [ap for ap, rssi in sorted_data[:d]]
-                            # d_data = dict((ap, rssi) for ap, rssi in filter_sample.items() if ap in selected_ap)
-                            d_data = get_data_ap_combination(filter_sample, *ap_tuple)
-                            d_svm = svm_models[ap_tuple]
-                            calculated_zone = other_test(floor.get_centroids, testing_mode, floor.zones,
-                                                         floor.grid_points, d_data, d_svm)
-                            if calculated_zone == sample.answer:
-                                correct += 1
-                        mm_accuracy = correct / len(testing_data)
-                        mm_correct.append({ap_tuple: mm_accuracy})
-                    for d, ap_tuple in random_ap_tuple.items():
-                        correct = 0
-                        for sample in testing_data:
-                            filter_sample = dict(
-                                (ap, rssi) for ap, rssi in sample.scan.items() if ap in access_points)
-                            d_data = get_data_ap_combination(filter_sample, *ap_tuple)
-                            d_svm = svm_models[ap_tuple]
-                            calculated_zone = other_test(floor.get_centroids, testing_mode, floor.zones,
-                                                         floor.grid_points, d_data, d_svm)
-                            if calculated_zone == sample.answer:
-                                correct += 1
-                        rd_accuracy = correct / len(testing_data)
-                        rd_correct.append({ap_tuple: rd_accuracy})
-                    for d in range(2, len(access_points) + 1):
-                        ig_tuple = tuple(sorted(best_ig_list[:d]))
-                        correct = 0
-                        for sample in testing_data:
-                            filter_sample = dict(
-                                (ap, rssi) for ap, rssi in sample.scan.items() if ap in access_points)
-                            d_data = get_data_ap_combination(filter_sample, *ig_tuple)
-                            d_svm = svm_models[ig_tuple]
-                            calculated_zone = other_test(floor.get_centroids, testing_mode, floor.zones,
-                                                         floor.grid_points, d_data, d_svm)
-                            if calculated_zone == sample.answer:
-                                correct += 1
-                        ig_accuracy = correct / len(testing_data)
-                        ig_correct.append({ig_tuple: ig_accuracy})
-
-                    if testing_mode == "SVM":
-                        for ap_tuple, model in best_jc_model.items():
-                            start_jc_testing_time = time()
-                            svm_dict = model[1]
-                            test_predict = list()
-                            average_accuracy = list()
+                        gd_testing_time = list()
+                        jc_testing_time = list()
+                        random_ap_tuple = dict()
+                        # NormalizedMatrix.test_mode = testing_mode
+                        for d in range(3, len(access_points) + 1):
+                            access_point_combinations = get_n_ap_combinations(access_points,
+                                                                              d)  # type: List[Tuple[AccessPoint, ...]]
+                            random_ap_tuple[d] = choice(access_point_combinations)
+                        # print("starting testing with {}".format(testing_mode))
+                        start_mm_test_time = time()
+                        for d, ap_list in best_ap.items():
+                            ap_tuple = tuple(sorted(ap_list))
                             correct = 0
-                            for ap, svm_list in svm_dict.items():
+                            mm_predict = list()
+                            for sample in testing_data:
+                                filter_sample = dict(
+                                    (ap, rssi) for ap, rssi in sample.scan.items() if ap in access_points)
+                                # sorted_data = sorted(filter_sample.items(), key=lambda kv: kv[1], reverse=True)
+                                # selected_ap = [ap for ap, rssi in sorted_data[:d]]
+                                # d_data = dict((ap, rssi) for ap, rssi in filter_sample.items() if ap in selected_ap)
+                                d_data = get_data_ap_combination(filter_sample, *ap_tuple)
+                                d_svm = svm_models[ap_tuple]
+                                calculated_zone = other_test(floor.get_centroids, testing_mode, floor.zones,
+                                                             floor.grid_points, d_data, d_svm)
+                                mm_predict.append(calculated_zone)
+                                if calculated_zone == sample.answer:
+                                    correct += 1
+                            mm_mse = mse_calculation(actual_zones=actual_zone, predict_zones=mm_predict)
+                            mm_accuracy = correct / len(testing_data)
+                            mm_correct.append({ap_tuple: (mm_accuracy, mm_mse)})
+                        end_mm_test_time = time()
+                        mm_testing_time = end_mm_test_time - start_mm_test_time
+                        for d, ap_tuple in random_ap_tuple.items():
+                            correct = 0
+                            for sample in testing_data:
+                                filter_sample = dict(
+                                    (ap, rssi) for ap, rssi in sample.scan.items() if ap in access_points)
+                                d_data = get_data_ap_combination(filter_sample, *ap_tuple)
+                                d_svm = svm_models[ap_tuple]
+                                calculated_zone = other_test(floor.get_centroids, testing_mode, floor.zones,
+                                                             floor.grid_points, d_data, d_svm)
+                                if calculated_zone == sample.answer:
+                                    correct += 1
+                            rd_accuracy = correct / len(testing_data)
+                            rd_correct.append({ap_tuple: rd_accuracy})
+                        start_ig_test_time = time()
+                        for d in range(3, len(access_points) + 1):
+                            ig_tuple = tuple(sorted(best_ig_list[:d]))
+                            correct = 0
+                            ig_predict = list()
+                            for sample in testing_data:
+                                filter_sample = dict(
+                                    (ap, rssi) for ap, rssi in sample.scan.items() if ap in access_points)
+                                d_data = get_data_ap_combination(filter_sample, *ig_tuple)
+                                d_svm = svm_models[ig_tuple]
+                                calculated_zone = other_test(floor.get_centroids, testing_mode, floor.zones,
+                                                             floor.grid_points, d_data, d_svm)
+                                ig_predict.append(calculated_zone)
+                                if calculated_zone == sample.answer:
+                                    correct += 1
+                            ig_mse = mse_calculation(actual_zones=actual_zone, predict_zones=ig_predict)
+                            ig_accuracy = correct / len(testing_data)
+                            ig_correct.append({ig_tuple: (ig_accuracy, ig_mse)})
+                        end_ig_test_time = time()
+                        ig_testing_time = end_ig_test_time - start_ig_test_time
+                        if testing_mode == "SVM":
+                            for ap_tuple, model in best_jc_model.items():
+                                start_jc_testing_time = time()
+                                svm_dict = model[1]
+                                test_predict = list()
+                                correct = 0
+                                jc_predict = list()
+                                for ap, svm_list in svm_dict.items():
+                                    aps_being_used = [x for x in ap]
+                                    ap_test_features = list()
+                                    for feature_set in test_features:
+                                        ap_test_features.append(
+                                            [value for key, value in feature_set.items() if key in aps_being_used])
+                                    for svm in svm_list:
+                                        p_labs, p_acc, p_vals = svm_predict(y=test_classes, x=ap_test_features,
+                                                                            m=svm,
+                                                                            options="-q")
+                                        test_predict.append(p_labs)
+                                        # print(p_acc[0])
+                                        # average_accuracy.append(p_acc[0])
+                                for d in range(len(test_predict[0])):
+                                    zone_predictions = list()
+                                    for p in test_predict:
+                                        zone_predictions.append(p[d])
+                                    best_predict_zone = max(zone_predictions, key=zone_predictions.count)
+                                    predicted_zone = zones[int(best_predict_zone) - 1]
+                                    jc_predict.append(predicted_zone)
+                                    if predicted_zone.num == test_classes[d]:
+                                        correct += 1
+                                jc_mse = mse_calculation(actual_zones=actual_zone, predict_zones=jc_predict)
+                                jc_accuracy = correct / len(testing_data)
+                                # highest_accuracy = max(average_accuracy)
+                                # jc_correct[ap_tuple] = accuracy
+                                jc_correct.append({ap_tuple: (jc_accuracy, jc_mse)})
+                                end_jc_testing_time = time()
+                                jc_testing_time.append(end_jc_testing_time - start_jc_testing_time)
+                            for ap, model in best_gd_model.items():
+                                start_gd_testing_time = time()
+                                svm_list = model[1]
+                                test_predict = list()
+                                correct = 0
                                 aps_being_used = [x for x in ap]
                                 ap_test_features = list()
+                                gd_predict = list()
                                 for feature_set in test_features:
                                     ap_test_features.append(
                                         [value for key, value in feature_set.items() if key in aps_being_used])
                                 for svm in svm_list:
-                                    p_labs, p_acc, p_vals = svm_predict(y=test_classes, x=ap_test_features,
-                                                                        m=svm,
+                                    p_labs, p_acc, p_vals = svm_predict(y=test_classes, x=ap_test_features, m=svm,
                                                                         options="-q")
                                     test_predict.append(p_labs)
-                                    # average_accuracy.append(p_acc[0])
-                            for d in range(len(test_predict[0])):
-                                zone_predictions = list()
-                                for p in test_predict:
-                                    zone_predictions.append(p[d])
-                                best_predict_zone = max(zone_predictions, key=zone_predictions.count)
-                                predicted_zone = zones[int(best_predict_zone) - 1]
-                                if predicted_zone.num == test_classes[d]:
-                                    correct += 1
-                            jc_accuracy = correct / len(testing_data)
-                            # highest_accuracy = max(average_accuracy)
-                            # jc_correct[ap_tuple] = accuracy
-                            jc_correct.append({ap_tuple: jc_accuracy})
-                            end_jc_testing_time = time()
-                            jc_testing_time.append(end_jc_testing_time - start_jc_testing_time)
-                        for ap, model in best_gd_model.items():
-                            start_gd_testing_time = time()
-                            svm_list = model[1]
-                            test_predict = list()
-                            correct = 0
-                            aps_being_used = [x for x in ap]
-                            ap_test_features = list()
-                            for feature_set in test_features:
-                                ap_test_features.append(
-                                    [value for key, value in feature_set.items() if key in aps_being_used])
-                            for svm in svm_list:
-                                p_labs, p_acc, p_vals = svm_predict(y=test_classes, x=ap_test_features, m=svm,
-                                                                    options="-q")
-                                test_predict.append(p_labs)
-                            for d in range(len(test_predict[0])):
-                                zone_predictions = list()
-                                for p in test_predict:
-                                    zone_predictions.append(p[d])
-                                best_predict_zone = max(zone_predictions, key=zone_predictions.count)
-                                predicted_zone = zones[int(best_predict_zone) - 1]
-                                if predicted_zone.num == test_classes[d]:
-                                    correct += 1
-                            gd_accuracy = correct / len(testing_data)
-                            # gd_correct[ap] = accuracy
-                            gd_correct.append({ap: gd_accuracy})
-                            end_gd_testing_time = time()
-                            gd_testing_time.append(end_gd_testing_time - start_gd_testing_time)
-                        # for i in range(2, len(access_points)+1):
-                        #     ap_list = [ap for ap in sorted_best_ap.keys()]
-                        #     ap_selected = ap_list[:i]
-                        #     ap_test_features = list()
-                        #     for feature_set in test_features:
-                        #         ap_test_features.append(
-                        #             [value for key, value in feature_set.items() if key in ap_selected])
+                                for d in range(len(test_predict[0])):
+                                    zone_predictions = list()
+                                    for p in test_predict:
+                                        zone_predictions.append(p[d])
+                                    best_predict_zone = max(zone_predictions, key=zone_predictions.count)
+                                    predicted_zone = zones[int(best_predict_zone) - 1]
+                                    gd_predict.append(predicted_zone)
+                                    if predicted_zone.num == test_classes[d]:
+                                        correct += 1
+                                gd_mse = mse_calculation(actual_zones=actual_zone, predict_zones=gd_predict)
+                                gd_accuracy = correct / len(testing_data)
+                                # gd_correct[ap] = accuracy
+                                gd_correct.append({ap: (gd_accuracy, gd_mse)})
+                                end_gd_testing_time = time()
+                                gd_testing_time.append(end_gd_testing_time - start_gd_testing_time)
+                            # for i in range(2, len(access_points)+1):
+                            #     ap_list = [ap for ap in sorted_best_ap.keys()]
+                            #     ap_selected = ap_list[:i]
+                            #     ap_test_features = list()
+                            #     for feature_set in test_features:
+                            #         ap_test_features.append(
+                            #             [value for key, value in feature_set.items() if key in ap_selected])
 
-                        print(
-                            "JC testing time is {}, GD testing time is {}".format(sum(jc_testing_time),
-                                                                                  sum(gd_testing_time)))
-                    else:
-                        for ap_tuple, model in best_jc_model.items():
-                            start_jc_testing_time = time()
-                            correct = 0
-                            normalized_matrix = model[0]
-                            if location_mode != testing_mode:
-                                if len(ap_tuple) > len(access_points):
-                                    break
-                            for sample in testing_data:
-                                zone_list = find_position(normalized_matrix, floor.get_centroids,
-                                                          floor.zones, testing_mode, floor.grid_points,
-                                                          sample.scan, combination_method)
-                                if zone_list == sample.answer:
-                                    correct += 1
-                            jc_accuracy = correct / len(testing_data)
-                            jc_correct.append({ap_tuple: jc_accuracy})
-                            end_jc_testing_time = time()
-                            jc_testing_time.append(end_jc_testing_time - start_jc_testing_time)
-                        for ap_tuple, model in best_gd_model.items():
-                            start_gd_testing_time = time()
-                            normalized_matrix = model[0]
-                            correct = 0
-                            for sample in testing_data:
-                                zone_list = find_position(normalized_matrix, floor.get_centroids,
-                                                          floor.zones, testing_mode, floor.grid_points,
-                                                          sample.scan, combination_method)
-                                if zone_list == sample.answer:
-                                    correct += 1
-                            gd_accuracy = correct / len(testing_data)
-                            gd_correct.append({ap_tuple: gd_accuracy})
-                            end_gd_testing_time = time()
-                            gd_testing_time.append(end_gd_testing_time - start_gd_testing_time)
-                        print(
-                            "JC testing time is {}, GD testing time is {}".format(sum(jc_testing_time),
-                                                                                  sum(gd_testing_time)))
-                    print("Finished testing with {}".format(testing_mode))
-                    gd_table_list[(location_mode, testing_mode)] = gd_correct, gd_testing_time, gd_training_time
-                    jc_table_list[(location_mode, testing_mode)] = jc_correct, jc_testing_time, jc_training_time
-                    mm_table_list[(location_mode, testing_mode)] = mm_correct, [0.0], 0.0
-                    rd_table_list[(location_mode, testing_mode)] = rd_correct, [0.0], 0.0
-                    ig_table_list[(location_mode, testing_mode)] = ig_correct, [0.0], 0.0
+                            print(
+                                "JC testing time is {}, GD testing time is {}".format(sum(jc_testing_time),
+                                                                                      sum(gd_testing_time)))
+                        else:
+                            for ap_tuple, model in best_jc_model.items():
+                                start_jc_testing_time = time()
+                                correct = 0
+                                normalized_matrix = model[0]
+                                jc_predict = list()
+                                # if location_mode != testing_mode:
+                                #     if len(ap_tuple) > len(access_points):
+                                #         break
+                                for sample in testing_data:
+                                    zone_list = find_position(normalized_matrix, floor.get_centroids,
+                                                              floor.zones, testing_mode, floor.grid_points,
+                                                              sample.scan, combination_method)
+                                    jc_predict.append(zone_list)
+                                    if zone_list == sample.answer:
+                                        correct += 1
+                                jc_mse = mse_calculation(actual_zones=actual_zone, predict_zones=jc_predict)
+                                jc_accuracy = correct / len(testing_data)
+                                jc_correct.append({ap_tuple: (jc_accuracy, jc_mse)})
+                                end_jc_testing_time = time()
+                                jc_testing_time.append(end_jc_testing_time - start_jc_testing_time)
+                            for ap_tuple, model in best_gd_model.items():
+                                start_gd_testing_time = time()
+                                normalized_matrix = model[0]
+                                correct = 0
+                                gd_predict = list()
+                                for sample in testing_data:
+                                    zone_list = find_position(normalized_matrix, floor.get_centroids,
+                                                              floor.zones, testing_mode, floor.grid_points,
+                                                              sample.scan, combination_method)
+                                    gd_predict.append(zone_list)
+                                    if zone_list == sample.answer:
+                                        correct += 1
+                                gd_mse = mse_calculation(actual_zones=actual_zone, predict_zones=gd_predict)
+                                gd_accuracy = correct / len(testing_data)
+                                gd_correct.append({ap_tuple: (gd_accuracy, gd_mse)})
+                                end_gd_testing_time = time()
+                                gd_testing_time.append(end_gd_testing_time - start_gd_testing_time)
+                            print(
+                                "JC testing time is {}, GD testing time is {}".format(sum(jc_testing_time),
+                                                                                      sum(gd_testing_time)))
+                        print("Finished testing with {}".format(testing_mode))
+                        gd_table_list[(location_mode, testing_mode)] = gd_correct, gd_testing_time, gd_training_time
+                        jc_table_list[(location_mode, testing_mode)] = jc_correct, jc_testing_time, jc_training_time
+                        mm_table_list[(location_mode, testing_mode)] = mm_correct, [mm_testing_time], mm_training_time
+                        rd_table_list[(location_mode, testing_mode)] = rd_correct, [0.0], 0.0
+                        ig_table_list[(location_mode, testing_mode)] = ig_correct, [ig_testing_time], ig_training_time
                 sheet_tab[ap_type] = [gd_table_list, jc_table_list, mm_table_list, ig_table_list]
                 ap_type += 1
+
             compare_sheets.append(Comparesheet(num_combinations=num_combination,
                                                error_mode=error_mode,
                                                best_gamma="Default",
@@ -468,15 +547,16 @@ def compare_methods(buildings: buildings,
         Point.reset_points()
         excel_start_time = time()
 
-        file_name = "Compare-ALL-details-chart-ig.xlsx"
+        file_name = "Compare-ALL-details-chart-820.xlsx"
         excel_workbook = xlsxwriter.Workbook("{}/Matrices/{}".format(main_folder, file_name))
         bold = excel_workbook.add_format({'bold': True})
         merge_format = excel_workbook.add_format({'bold': True, 'align': 'center'})
+        high_light = excel_workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'yellow'})
 
         # Save the key page:
         excel_worksheet = excel_workbook.add_worksheet("Keys")
         # Worksheet.save_key_page(excel_worksheet, bold=bold, merge_format=merge_format)
-        Comparesheet.save_key_page(excel_worksheet, bold=bold, merge_format=merge_format)
+        Comparesheet.save_key_page(excel_worksheet, data_results, bold=bold, merge_format=merge_format)
 
         # Save all other pages:
         problems_saving = list()  # type: List[str]
@@ -485,6 +565,7 @@ def compare_methods(buildings: buildings,
                 excel_worksheet = excel_workbook.add_worksheet(sheet.tab_title)
                 chart_worksheet = excel_workbook.add_worksheet("{}-chart".format(sheet.tab_title))
                 special_worksheet = excel_workbook.add_worksheet("{}-special".format(sheet.tab_title))
+                # matrix_worksheet = excel_workbook.add_worksheet("{}-matrix".format(sheet.tab_title))
             except xlsxwriter.exceptions.DuplicateWorksheetName:
 
                 problem_sheet = sheet.tab_title
@@ -496,6 +577,22 @@ def compare_methods(buildings: buildings,
 
             sheet.save(excel_worksheet, chart_worksheet, special_worksheet, excel_workbook, bold=bold,
                        merge_format=merge_format)
+
+        for sheet in work_sheets:
+            try:
+                excel_worksheet = excel_workbook.add_worksheet("{}-matrix".format(sheet.tab_title))
+            except xlsxwriter.exceptions.DuplicateWorksheetName:
+
+                problem_sheet = sheet.tab_title
+                problem_resolution = str(uuid4())[:25]
+                problem_description = "Worksheet {} has the same tab-title as another page. It has been replaced with {}."
+                problems_saving.append(problem_description.format(problem_sheet, problem_resolution))
+
+                excel_worksheet = excel_workbook.add_worksheet(problem_resolution)
+
+            sheet.save(excel_worksheet, bold=bold,
+                       merge_format=merge_format, high_light=high_light)
+
         excel_workbook.close()
         excel_end_time = time()
 
@@ -688,11 +785,11 @@ def home():
         compare_methods(buildings=buildings,
                         num_combination=4,
                         combination_mode="WGT",
-                        location_modes=["SVM", "NNv4", "kNNv1", "kNNv2", "kNNv3"],
+                        location_modes=["SVM", "NNv4"],
                         error_mode=error_modes[0],
                         write_sheet=True,
-                        num_splits=3,
-                        testing_modes=["SVM", "NNv4", "kNNv1", "kNNv2", "kNNv3"]
+                        num_splits=5,
+                        testing_modes=["SVM", "NNv4"]
                         )
     user_type = current_user['role']
     if user_type == 'admin':
@@ -736,13 +833,37 @@ def find_floor(filtered_data, target_building):
     return target_floor["Floor"]
 
 
+def sound(x, z):
+    frequency = x  # Our played note will be 440 Hz
+    fs = 44100  # 44100 samples per second
+    seconds = z  # Note duration of 3 seconds
+
+    # Generate array with seconds*sample_rate steps, ranging between 0 and seconds
+    t = np.linspace(0, seconds, seconds * fs, False)
+
+    # Generate a 440 Hz sine wave
+    note = np.sin(frequency * t * 2 * np.pi)
+
+    # Ensure that highest value is in 16-bit range
+    audio = note * (2 ** 15 - 1) / np.max(np.abs(note))
+    # Convert to 16-bit data
+    audio = audio.astype(np.int16)
+
+    # Start playback
+    play_obj = sa.play_buffer(audio, 1, 2, fs)
+
+    # Wait for playback to finish before exiting
+    play_obj.wait_done()
+
+
 @app.route("/map", methods=["Get", "POST", "PUT"])
 def show_map():
     global position_data
     if request.method == 'PUT':
         frequency = 4000
         duration = 1000
-        winsound.Beep(frequency, duration)
+        # winsound.Beep(frequency, duration)
+        sound(300, 2)
         dict_data = ast.literal_eval(request.form.getlist('PutData')[0])  # Gets the actual JSON data that was sent.
         user_id = dict_data['ID']
         scan_data = dict_data['Scans']['data']
@@ -865,7 +986,7 @@ def find_position(normalized: NormalizedMatrix,
                   location_mode: str,
                   grid_points: List[GridPoint],
                   data: Dict[AccessPoint, int],
-                  combination_method: Callable) -> Tuple[Zone, Zone, List[float]]:
+                  combination_method: Callable):
     if "U" in normalized.id:
         combine_vectors = combination_method
         resultant = normalized.parent_matrix
@@ -907,7 +1028,9 @@ def find_position(normalized: NormalizedMatrix,
             calculated_co_ordinate = location_method(grid_points=grid_points, rssis=ap_rssi_dict)
         # coord = get_NNv4_RSSI(centroid_points=centroids, rssis=ap_rssi_dict)
         calculated_zone = get_zone(zones=zones, co_ordinate=calculated_co_ordinate)
-        return calculated_zone
+        self_vector = normalized.get_vector(calculated_zone)
+        self_zone = max(self_vector, key=self_vector.get)
+        return self_zone
 
 
 def other_test(centroids: List[Centroid], location_mode: str,
@@ -934,7 +1057,6 @@ def other_test(centroids: List[Centroid], location_mode: str,
         # coord = get_NNv4_RSSI(centroid_points=centroids, rssis=ap_rssi_dict)
         calculated_zone = get_zone(zones=zones, co_ordinate=calculated_co_ordinate)
         return calculated_zone
-
 
 
 def filter_scan_data(scan_data,
@@ -975,23 +1097,37 @@ def convert_epoch_to_datetime(epoch_time):
 @app.route('/offline', methods=['Get', 'POST', 'PUT'])
 def offline():
     if request.method == 'PUT':
-        print(request.form.to_dict())
+        sound(300, 1)
         dict_data = ast.literal_eval(request.form.getlist('PutData')[0])  # Gets the actual JSON data that was sent.
         print(dict_data)
+        insert_floor = dict_data['Floor']
+        insert_zone = dict_data['Zone']
+        target_building = buildings[1]
+        target_floor = target_building.floors[int(insert_floor)]
+        target_ap = target_floor.access_points
         scan_data = dict_data["Scans"]["data"]
-        filter_data(scan_data)
+        filtered_data = filter_data(scan_data, target_ap)
+        save_to_db(filtered_data, insert_floor, insert_zone)
+        return json.dumps({"result": "Saved"})
 
 
-def filter_data(data):
+def filter_data(data, access_points):
+    ap_list = [ap.id for ap in access_points]
+    filtered_data = dict()
     data.sort(key=lambda k: len(k.get('RSSIs')))
     data1 = sorted(data, key=lambda k: len(k.get('RSSIs')), reverse=True)
-    print(data1)
-    return data1
+    for d in data1:
+        if d['BSSID'] in ap_list:
+            filtered_data[d['BSSID']] = d['RSSIs']
+    return filtered_data
 
 
-def save_to_db(scan_data):
-    for data in scan_data:
-        mongo.db.Offline_data.insert(data)
+def save_to_db(scan_data, insert_floor, insert_zone):
+    insert_position = "floors.{}.Data.{}.zone_data".format(insert_floor, insert_zone)
+    data_updated = mongo.db.Data.update(
+        {"building_name": "HOME"}
+        , {"$push": {insert_position: scan_data}})
+    floor_data = list(mongo.db.Data.find())
 
 
 @app.route('/update', methods=['Get', 'POST', 'PUT'])

@@ -1,3 +1,5 @@
+import math
+
 from Resources.Objects.Points.AccessPoint import AccessPoint
 from typing import List, Dict, Tuple, Union
 from Resources.Objects.Zone import Zone
@@ -11,13 +13,14 @@ class Matrix(ABC):
         assert size > 0, "The matrix must have a side length greater than 0."
         assert len(access_points) > 1, "The matrices must have at least 2 Access Points."
 
-        self.__size = size                      # type: int
-        self.__access_points = access_points    # type: List[AccessPoint]
-        self.__zones = zones                    # type: List[Zone]
-        self.__csv_list = None                  # type: Union[None, List[List[str]]]
-        self.__matrix_sum = -1                  # type: float
-        self.__id = None                        # type: Union[None, str]
-        self.__Vector_Dict = dict()             # type: Dict[Zone, Dict[Zone, float]]
+        self.__size = size  # type: int
+        self.__access_points = access_points  # type: List[AccessPoint]
+        self.__zones = zones  # type: List[Zone]
+        self.__csv_list = None  # type: Union[None, List[List[str]]]
+        self.__matrix_sum = -1  # type: float
+        self.__mse = 0
+        self.__id = None  # type: Union[None, str]
+        self.__Vector_Dict = dict()  # type: Dict[Zone, Dict[Zone, float]]
         for measured_zone in zones:
             self.__Vector_Dict[measured_zone] = {actual_zone: 0 for actual_zone in zones}
 
@@ -37,6 +40,12 @@ class Matrix(ABC):
     @property
     def zones(self) -> List[Zone]:
         return self.__zones
+
+    def sample_taken(self, actual_zone: Zone) -> int:
+        sample = 0
+        for zone in self.__zones:
+            sample += self.get_value(zone, actual_zone)
+        return sample
 
     @property
     def matrix_sum(self) -> float:
@@ -59,6 +68,21 @@ class Matrix(ABC):
         self.__id = Str
         return self.__id
 
+    # def get_mean_error(self):
+    #     MSE = 0  # variable to store the summation of differences
+    #     for measured_zone in self.zones:
+    #         for actual_zone in self.zones:
+    #             actual_cood = actual_zone.center
+    #             predict_cood = measured_zone.center
+    #             squared_difference = (actual_cood[0] - predict_cood[0]) ** 2 + (
+    #                     actual_cood[1] - predict_cood[1]) ** 2  # taking square of the differene
+    #             number = self.__Vector_Dict[measured_zone][actual_zone]
+    #             print("value is:{}".format(number))
+    #             summation = number * math.sqrt(squared_difference)  # taking a sum of all the differences
+    #             MSE += summation  # dividing summation by total values to obtain average
+    #     # print("The Mean Square Error is: ", MSE)
+    #     return MSE
+
     @property
     def measured_zones_and_vectors(self) -> Tuple[Zone, Dict[Zone, List[float]]]:
         for measured_zone, vector in self.__Vector_Dict.items():
@@ -74,7 +98,7 @@ class Matrix(ABC):
         if self.__csv_list is not None:
             return self.__csv_list
 
-        csv_list = list()   # type: List[List[str]]
+        csv_list = list()  # type: List[List[str]]
         csv_list.append(["Access Point Combination: " + self.id])
         csv_list.append(["Zones"] + [str(x) for x in self.__Vector_Dict.keys()])
 
@@ -83,12 +107,14 @@ class Matrix(ABC):
 
         self.__csv_list = csv_list
         return csv_list
+
     # endregion
 
     # region Setters
     @id.setter
     def id(self, id: str) -> None:
         self.__id = id
+
     # endregion
 
     # region Getters
@@ -100,16 +126,22 @@ class Matrix(ABC):
 
     def get_vector_sum(self, measured_zone: Zone) -> float:
         return sum(self.__Vector_Dict[measured_zone])
+
     # endregion
 
     # region Setters
     def set_value(self, measured_zone: Zone, actual_zone: Zone, value: float) -> None:
         self.__Vector_Dict[measured_zone][actual_zone] = value
+
+    def set_mse(self, mse: float):
+        self.__mse = mse
+
     # endregion
 
     # region Incrementer
     def increment_value(self, measured_zone: Zone, actual_zone: Zone, increment_value: Union[int, float] = 1) -> None:
         self.__Vector_Dict[measured_zone][actual_zone] += increment_value
+
     # endregion
 
     # region Methods
@@ -131,6 +163,7 @@ class Matrix(ABC):
 
             for row in self.csv_list:
                 writer.writerow(row)
+
     # endregion
 
     # region Static Methods

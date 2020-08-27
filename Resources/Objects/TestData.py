@@ -113,31 +113,27 @@ class TestResult:
     def __ge__(self, other):
         return True if self.accuracy >= other.accuracy else False
 
-    # endregion
-
     # JC-01 - add code to support 2nd guess information
     def record(self, zone: Zone, vector: Dict[Zone, float]) -> None:
         self.__total_tests += 1
-
         # Get max probability in the vector
         most_likely_zone = max(vector, key=vector.get)
         base_zone_error_1 = abs(most_likely_zone.num - zone.num)
         if most_likely_zone == zone:
             self.__correct += 1
-
             if zone not in self.__answer_details:
                 self.__answer_details[zone] = {"times_tested": 1, "times_correct": 1, "times_2nd_correct": 0,
                                                "base_zone_error_1": 0.0, "base_zone_error_2": 0.0}
-
             else:
                 self.__answer_details[zone]["times_tested"] += 1
                 self.__answer_details[zone]["times_correct"] += 1
             return
 
-        vector[most_likely_zone] = 0.0
-        most_likely_zone = max(vector, key=vector.get)
-        base_zone_error_2 = abs(most_likely_zone.num - zone.num)
-        if most_likely_zone == zone:
+        # vector[most_likely_zone] = 0.0
+        # most_likely_zone_2 = max(vector, key=vector.get)
+        most_likely_zone_2 = [key for key in sorted(vector, key=vector.get, reverse=True)][1]
+        base_zone_error_2 = abs(most_likely_zone_2.num - zone.num)
+        if most_likely_zone_2 == zone:
             self.__sec_correct += 1
 
             if zone not in self.__answer_details:

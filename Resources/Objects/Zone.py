@@ -51,8 +51,25 @@ class Zone:
         num = int(self.zone_num[-1])
         return num
 
+    @property
+    def center(self) -> tuple:
+        cood = self.points.point
+        return cood
+
     def __str__(self) -> str:
         return "Zone " + str(self.num)
+
+    def __lt__(self, other):
+        return True if self.num < other.num else False
+
+    def __le__(self, other):
+        return True if self.num <= other.num else False
+
+    def __gt__(self, other):
+        return True if self.num > other.num else False
+
+    def __ge__(self, other):
+        return True if self.num >= other.num else False
 
     @classmethod
     def create_point_list(cls, zone_list: list, gp_list: list):
