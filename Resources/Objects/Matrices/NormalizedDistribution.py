@@ -11,9 +11,7 @@ class NormalizedMatrix(Matrix):
     combination_mode = ""
     location_mode = ""
     train_mode = ""
-    test_mode = ""
     type_mode = ""
-    theAnswer = ""  # JC-01 - used to hold the sample actual zone - sample.answer
 
     # region Constructor
     def __init__(self, matrix: Matrix, combine_ids: bool = False):
@@ -23,17 +21,14 @@ class NormalizedMatrix(Matrix):
         self.__csv_list = None  # type: Union[None, List[List[str]]]
         self.__average_matrix_error = -1  # type: float
         self.__average_matrix_success = -1  # type: float
-        self.__normalize_matrix(matrix)  # type: Matrix
         self.__access_points_combo = []  # type: List[Tuple[AccessPoint]]
-
+        self.__normalize_matrix(matrix)
         if combine_ids:
             Str = ""
             for child in self.__parent_matrix.normalizations:
                 Str += child.id + " U "
                 self.__access_points_combo.append(child.access_points_tuple)
             self.id = Str[:-3]
-
-    # endregion
 
     # region Properties
     @property
@@ -66,7 +61,6 @@ class NormalizedMatrix(Matrix):
     def csv_list(self) -> List[List[str]]:
         if self.__csv_list is not None:
             return self.__csv_list
-
         csv_list = list()  # type: List[List[str]]
         csv_list.append(["Access Point Combination: " + self.id])
         csv_list.append(["Zones"] + [str(x) for x in self.zones] + ["Error"] + ["Success"])
@@ -104,6 +98,7 @@ class NormalizedMatrix(Matrix):
 
         raise NotImplementedError("Error mode {} is unknown".format(NormalizedMatrix.error_mode))
 
+
     @staticmethod
     def get_vector_success(measured_zone: Zone, vector: Dict[Zone, float]) -> float:
         # TODO: Re-implement this and get_vector_error properly.
@@ -126,7 +121,8 @@ class NormalizedMatrix(Matrix):
                 if row_sum == 0:
                     self.set_value(measured_zone=measured_zone, actual_zone=actual_zone, value=0)
                 else:
-                    self.set_value(measured_zone=measured_zone, actual_zone=actual_zone, value=value / row_sum)
+                    normalized_value = value / row_sum
+                    self.set_value(measured_zone=measured_zone, actual_zone=actual_zone, value=normalized_value)
 
     # endregion
 
@@ -149,8 +145,8 @@ class NormalizedMatrix(Matrix):
         pass
 
 
-def build_normalized_distribution(probability_distribution: ProbabilityMatrix) -> NormalizedMatrix:
-    return build_normalized_distributions([probability_distribution])[0]
+def build_normalized_distribution(probability_distributions: ProbabilityMatrix) -> NormalizedMatrix:
+    return NormalizedMatrix(probability_distributions)
 
 
 def build_normalized_distributions(probability_distributions: List[ProbabilityMatrix]) -> List[NormalizedMatrix]:

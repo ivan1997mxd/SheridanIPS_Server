@@ -84,6 +84,8 @@ def create_all_matrices_from_rssi_data(access_points: List[AccessPoint],
                                                  #                                            combination_method=get_combination_function("DBG"))    #JC-01 use the debugging method.
                                                  combination_method=combination_method)
 
+
+
         print("-- Completed Testing Distributions.")
         test_end_time = time()
         end_time = time()
@@ -97,11 +99,11 @@ def create_all_matrices_from_rssi_data(access_points: List[AccessPoint],
         print()
         return probability_distributions, normalized_distributions, combined_distributions, normalized_combined_distributions, test_results
     else:
-        end_time = time()
-        # print("-- Matrix Production run time: {}".format(end_time - start_time))
-        # print()
-        # 9. Return Matrix objects to caller
-        return probability_distributions, normalized_distributions
+        jc_test_results = test_normalized_list(normalized_list=normalized_distributions,
+                                               centroids=centroids,
+                                               zones=zones,
+                                               testing_data=testing_data)
+        return probability_distributions, normalized_distributions, jc_test_results
 
 
 def record_matrices(matrix_list: List[NormalizedMatrix], file_path: str):

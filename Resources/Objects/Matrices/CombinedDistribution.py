@@ -1,3 +1,4 @@
+from Algorithms.svm.svm import svm_model
 from Algorithms.svm.svmutil import svm_predict
 from Objects.FinalCombinationContainer import FinalCombinationContainer
 from Resources.Objects.Matrices.NormalizedDistribution import NormalizedMatrix
@@ -7,7 +8,7 @@ from Resources.Objects.TestData import Sample, TestResult
 from Resources.Objects.Points.Centroid import Centroid
 from Algorithms.NearestNeighbour.NNv4 import get_NNv4, get_NNv4_RSSI
 from Resources.Objects.Zone import Zone, get_zone
-from typing import List, Dict, Callable
+from typing import List, Dict, Callable, Tuple
 
 
 class CombinedMatrix(Matrix):
@@ -70,6 +71,50 @@ class CombinedMatrix(Matrix):
     # endregion
 
 
+def test_normalized_list(normalized_list: List[NormalizedMatrix],
+                         centroids: List[Centroid],
+                         zones: List[Zone],
+                         testing_data: List[Sample]):
+    test_results = dict()  # type: Dict[NormalizedMatrix, TestResult]
+    for normalized in normalized_list:
+        test_result = TestResult()
+
+        # JC-01 used the measured/reported zone instead of the actual zone to the algorithm.
+        for sample in testing_data:
+            ap_rssi_dict = sample.get_ap_rssi_dict(*normalized.access_points)
+            coord = get_NNv4_RSSI(centroid_points=centroids, rssis=ap_rssi_dict)
+            zone = get_zone(zones=zones, co_ordinate=coord)
+
+            vector = normalized.get_vector(zone)
+            test_result.record(sample.answer, vector)
+
+        test_results[normalized] = test_result
+
+    return test_results
+
+
+def test_normalized_dict(normalized_dict: Dict[int, List[NormalizedMatrix]],
+                         centroids: List[Centroid],
+                         zones: List[Zone],
+                         testing_data: List[Sample]
+                         ) -> Dict[int, List[TestResult]]:
+    test_dict = dict()  # type: Dict[int, List[TestResult]]
+    for d, normalized_matrices in normalized_dict.items():
+        test_results = list()  # type: List[TestResult]
+        for normalized_matrix in normalized_matrices:
+            test_result = TestResult()
+            for sample in testing_data:
+                ap_rssi_dict = sample.get_ap_rssi_dict(*normalized_matrix.access_points)
+                coord = get_NNv4_RSSI(centroid_points=centroids, rssis=ap_rssi_dict)
+                zone = get_zone(zones=zones, co_ordinate=coord)
+
+                vector = normalized_matrix.get_vector(zone)
+                test_result.record(sample.answer, vector)
+            test_results.append(test_result)
+        test_dict[d] = test_results
+    return test_dict
+
+
 def test_combination_matrices(normalized_combined_distributions: List[NormalizedMatrix],
                               centroids: List[Centroid],
                               zones: List[Zone],
@@ -110,66 +155,20 @@ def test_combination_matrices(normalized_combined_distributions: List[Normalized
 
 
 def test_svm_matrices(
-        final_combined_list: List[FinalCombinationContainer],
-        test_features: List[Sample],
-        combination_method: Callable) -> Dict[NormalizedMatrix, TestResult]:
-    combine_vectors = combination_method
-
-    test_results = dict()  # type: Dict[NormalizedMatrix, TestResult]
-
-    tests_complete = 1
-    print("------ There are {} matrices to test.".format(len(final_combined_list)))
-    print("------ Each matrix will be tested against {} samples.".format(len(test_features)))
-    for final_combination in final_combined_list:
-        print("------ Test #{}: {}.".format(tests_complete, final_combination.normalization.id))
-        tests_complete += 1
-
-        combined_dist = final_combination.normalization
-
-        test_result = TestResult()
-
-        for test_index, scan in enumerate(test_features):
-
-            vectors = list()
-            answers = list()
-
-            # We need to go through all the ap combinations
-            ap_tuples = final_combination.ap_tuples
-
-            # We need to get each SVM's prediction
-            for ap_combination in ap_tuples:
-
-                svm_list = final_combination.svm_list(ap_combination)
-                zones = final_combination.normalization.zones
-
-                predictions = list()  # type: List[List[float]]
-
-                # For each SVM:
-                for svm in svm_list:
-                    aps_being_used = [x for x in ap_combination]
-                    features = [value for key, value in scan.scan.items() if key in aps_being_used]
-                    # features = [x for key, x in scan.scan if (key + 1) in aps_being_used]
-                    p_labs, p_acc, p_vals = svm_predict(y=[scan.answer.num], x=[features], m=svm, options="-q")
-                    predictions.append(p_labs)
-
-                best_predict_zone = max(predictions, key=predictions.count)
-                predicted_zone = zones[int(best_predict_zone[0]) - 1]
-                # Average all the SVM's predictions:
-                # averaged_prediction = np.average(predictions, axis=0)[0]
-
-                # Get the predicted zone (the index that matches the highest probability + 1).
-                # predicted_zone = np.where(averaged_prediction == np.amax(averaged_prediction))[0][0] + 1
-                # Add 1 because the zone = index + 1.
-
-                # Get the vector from the normalized distribution.
-                vector = combined_dist.get_vector(predicted_zone)
-                answers.append(predicted_zone)
-
-                vectors.append(vector)
-
-            resultant_vector = combine_vectors(answers, *vectors)
-            test_result.record(scan.answer, resultant_vector)
-
-        test_results[combined_dist] = test_result
-
-    return test_results
+        normalized_distribution: NormalizedMatrix,
+        svm: svm_model,
+        zones: List[Zone],
+        test_class: List[int],
+        test_features: List[Dict[AccessPoint, int]]) -> TestResult:
+    test_result = TestResult()
+    ap_test_features = list()
+    for features in test_features:
+        filtered_features = [value for key, value in features.items() if key in normalized_distribution.access_points]
+        ap_test_features.append(filtered_features)
+    p_labs, p_acc, p_vals = svm_predict(y=test_class, x=ap_test_features, m=svm, options="-q")
+    for index, prediction in enumerate(p_labs):
+        predict_zone = zones[int(prediction) - 1]
+        actual_zone = zones[test_class[index] - 1]
+        vector = normalized_distribution.get_vector(predict_zone)
+        test_result.record(zone=actual_zone, vector=vector)
+    return test_result

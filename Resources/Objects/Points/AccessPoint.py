@@ -105,7 +105,7 @@ class AccessPoint(Point):
 
 def get_ap_combinations(access_points: List[AccessPoint]) -> List[Tuple[AccessPoint, ...]]:
     access_point_tuples = list()
-    for i in range(0, len(access_points) + 1):
+    for i in range(3, len(access_points) + 1):
         for subset in combinations(access_points, i):
             if len(subset) < 2:
                 continue

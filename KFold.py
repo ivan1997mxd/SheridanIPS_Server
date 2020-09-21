@@ -1,4 +1,5 @@
 from itertools import combinations
+from statistics import median
 from time import time
 
 from sklearn.model_selection import KFold
@@ -19,14 +20,17 @@ from Algorithms.svm.svmutil import svm_train, svm_predict
 from Objects.Collector import *
 from Objects.FinalCombinationContainer import get_average_rate
 from Objects.Fold import Fold
+from Objects.TestData import TestResult
 from Offline.MatrixProduction import create_all_matrices_from_rssi_data, create_all_svm_matrices
 from Resources.Objects.Floor import Floor
-from Resources.Objects.Matrices.CombinedDistribution import test_combination_matrices, test_svm_matrices
+from Resources.Objects.Matrices.CombinedDistribution import test_combination_matrices, test_svm_matrices, \
+    test_normalized_dict
 from Resources.Objects.Matrices.NormalizedDistribution import NormalizedMatrix, sort_matrices
 from Resources.Objects.Matrices.ProbabilityDistribution import __get_access_point_combinations
 from Resources.Objects.Points.Centroid import Centroid
 from Resources.Objects.Points.AccessPoint import AccessPoint, get_n_ap_combinations, get_ap_combinations
 from Resources.Objects.TestData import Sample, create_test_data_list
+from Resources.Objects.Worksheet import Worksheet
 from Resources.Objects.Zone import Zone
 from Resources.Objects.Points.GridPoint_RSSI import GridPoint
 
@@ -36,7 +40,7 @@ def create_compare_combination(num_splits: int,
                                location_mode: str,
                                num_combinations: int,
                                mm_ap_dict: dict,
-                               data: List[Sample],
+                               training_data: List[Sample],
                                combine: bool,
                                centroids: List[Centroid],
                                grid_points: List[GridPoint],
@@ -44,9 +48,10 @@ def create_compare_combination(num_splits: int,
                                zones: List[Zone]):
     jc_time = 0
     gd_time = 0
+    ig_time = 0
     start_initialize_time = time()
     # 4. Set K-Fold Splits
-    X = np.array(data)
+    X = np.array(training_data)
     kf = KFold(n_splits=num_splits)
 
     # 5. For every fold, for every AP combination, train a new SVM.
@@ -81,27 +86,39 @@ def create_compare_combination(num_splits: int,
         test_features = list()  # type: List[Dict[AccessPoint, int]]
         test_classes = list()  # type: List[int]
 
+        exam_features = list()  # type: List[Dict[AccessPoint, int]]
+        exam_classes = list()  # type: List[int]
+
         # change to NNv4 mode
         for num in train_indices:
-            train_samples.append(data[num])
-            train_features.append(data[num].scan)
-            train_classes.append(data[num].answer.num)
+            train_samples.append(training_data[num])
+            if num < median(train_indices):
+                train_features.append(training_data[num].scan)
+                train_classes.append(training_data[num].answer.num)
+            else:
+                test_features.append(training_data[num].scan)
+                test_classes.append(training_data[num].answer.num)
 
         for num in test_indices:
-            test_samples.append(data[num])
-            test_features.append(data[num].scan)
-            test_classes.append(data[num].answer.num)
+            test_samples.append(training_data[num])
+            exam_features.append(training_data[num].scan)
+            exam_classes.append(training_data[num].answer.num)
 
-        # info gain selection
-        ig_model = choose_best_info_gain(train_samples, access_points)
-        ig_models.append(ig_model)
-        d = 2
-        trained_models = list()  # type: List[IndividualModel]
         end_data_time = time()
         data_time = end_data_time - start_data_time
         # print("data time: {}s.".format(data_time))
         jc_time += data_time
         gd_time += data_time
+
+        d = 3
+        trained_models = list()  # type: List[IndividualModel]
+
+        # info gain selection
+        start_ig_time = time()
+        ig_model = choose_best_info_gain(train_samples, access_points)
+        ig_models.append(ig_model)
+        end_ig_time = time()
+        ig_time += end_ig_time - start_ig_time
         while d < len(access_points) + 1:
             start_combination_time = time()
             access_point_combinations = get_n_ap_combinations(access_points, d)  # type: List[Tuple[AccessPoint, ...]]
@@ -165,7 +182,6 @@ def create_compare_combination(num_splits: int,
                 trained_models.append(individual_model)
             end_svm_time = time()
             svm_time = end_svm_time - start_svm_time
-            # print("svm time: {}s.".format(svm_time))
             gd_time += svm_time
             if location_mode == "SVM":
                 jc_time += svm_time
@@ -186,8 +202,18 @@ def create_compare_combination(num_splits: int,
             # print("find time: {}s.".format(find_time))
             gd_time += find_time
             # print("finish GD training for d = {}, best ap combination is {}".format(d, best_one))
-            if location_mode != "SVM":
-                start_matrix_time = time()
+            start_matrix_time = time()
+            if location_mode == "SVM":
+                start_distributions_time = time()
+                print("Creating Probability and Normalized Probability Distributions...")
+                fold.create_probability_distributions()
+                fold.create_normalized_distributions()
+                fold.create_test_distributions(zones=zones, testing_features=exam_features,
+                                               testing_class=exam_classes)
+                end_distributions_time = time()
+                distributions_time = end_distributions_time - start_distributions_time
+                jc_time += distributions_time
+            else:
                 distributions = create_all_matrices_from_rssi_data(
                     access_points=access_points,
                     access_point_combinations=access_point_combinations,
@@ -203,84 +229,89 @@ def create_compare_combination(num_splits: int,
                 # print("First Run")
                 probability_distributions = distributions[0]
                 normalized_distributions = distributions[1]
+                test_results = distributions[2]
                 fold.create_distributions(access_point_combinations=access_point_combinations,
                                           p_list=probability_distributions,
-                                          n_list=normalized_distributions)
-                end_matrix_time = time()
-                matrix_time = end_matrix_time - start_matrix_time
-                # print("matrix time: {}s.".format(matrix_time))
-                jc_time += matrix_time
+                                          n_list=normalized_distributions,
+                                          t_list=test_results)
+            end_matrix_time = time()
+            matrix_time = end_matrix_time - start_matrix_time
+            jc_time += matrix_time
             d += 1
         folds[fold_number] = fold
         print("Completed Fold {}.".format(fold_number))
         fold_number += 1
-    if location_mode == "SVM":
-        start_distributions_time = time()
-        print("Creating Probability and Normalized Probability Distributions...")
-        for fold in folds.values():
-            fold.create_probability_distributions()
-            fold.create_normalized_distributions()
-        print("Completed. There are {} Probability and Normalized Distributions.".format(len(folds)))
-        end_distributions_time = time()
-        distributions_time = end_distributions_time - start_distributions_time
-        print("distribution time: {}s.".format(distributions_time))
-        jc_time += distributions_time
-        gd_time += distributions_time
-    print("Averaging the matrices produced from Folding...")
     averaged_normalized_distributions = dict()
+    start_average_time = time()
     for ap_tuple in all_access_point_combinations:
         # print("--- Working on AP Combination: {}.".format(ap_tuple))
-        start_average_time = time()
         distributions_to_average = list()  # type: List[NormalizedMatrix]
         svms_to_store = list()  # type: List[svm_model]
+        test_to_average = list()  # type: List[TestResult]
         for fold in folds.values():
             distributions_to_average.append(fold.get_normalized_distribution(ap_tuple))
             svms_to_store.append(fold.get_SVM(ap_tuple))
+            test_to_average.append(fold.get_test_distribution(ap_tuple))
+
         averaged_normalized_distribution = Fold.get_average_distribution(access_points=[*ap_tuple],
                                                                          zones=zones,
                                                                          distributions=distributions_to_average)
-        if location_mode == "SVM":
-            averaged_normalized_distributions[ap_tuple] = averaged_normalized_distribution, svms_to_store
-            # print("--- Completed. {} Normalizations, and {} SVMs have been stored."
-            #       .format(len(distributions_to_average), len(svms_to_store)))
-        else:
-            averaged_normalized_distributions[ap_tuple] = averaged_normalized_distribution
-        end_average_time = time()
-        average_time = end_average_time - start_average_time
-        # print("Average distribution time: {}s.".format(average_time))
-        jc_time += average_time
+        averaged_test_accuracy = Fold.get_average_test_distribution(test_to_average)
+
+        averaged_normalized_distributions[ap_tuple] = averaged_normalized_distribution, averaged_test_accuracy, svms_to_store
+
     print("Completed. There are {} Normalized Distributions ready for combination."
           .format(len(averaged_normalized_distributions.values())))
+    end_average_time = time()
+    average_time = end_average_time - start_average_time
+    # print("Average distribution time: {}s.".format(average_time))
+    jc_time += average_time
 
+    start_ig_find = time()
     best_ig_model = list()
     for i in range(len(access_points)):
         ap_list = [model[i] for model in ig_models]
         best_ig_model.append(max(ap_list, key=ap_list.count))
+    end_ig_find = time()
+    ig_time += end_ig_find - start_ig_find
+
+    start_jc_model_time = time()
+    jc_all_combination = dict()
+
+    averaged_normalized_tuple = sorted(averaged_normalized_distributions.values(),
+                                       key=lambda x: x[0].average_matrix_success, reverse=True)
+    averaged_normalized_list = [normalized_tuple[0] for normalized_tuple in averaged_normalized_tuple]
+    averaged_test_tuple = sorted(averaged_normalized_distributions.values(),
+                                 key=lambda x: x[1], reverse=True)
+    averaged_test_list = [test_tuple[0] for test_tuple in averaged_test_tuple]
+    for i in range(3, len(access_points) + 1):
+        dict_best_model = dict()
+        best_normalizations = [normalized_dist for normalized_dist in averaged_normalized_list if
+                               len(normalized_dist.access_points) == i]
+        best_tests = [test_dist for test_dist in averaged_test_list if
+                      len(test_dist.access_points) == i]
+        best_normalization = best_normalizations[0]
+        best_test = best_tests[0]
+        jc_all_combination[i] = best_normalizations
+        if best_test == best_normalization:
+            print("Self correction pass")
+            jc_ap_tuple = best_normalization.access_points_tuple
+            best_jc_normalized = best_normalization
+        else:
+            print("Self correction wrong")
+            best_index_test = best_tests.index(best_normalization)
+            if best_index_test > 2:
+                jc_ap_tuple = best_test.access_points_tuple
+                best_jc_normalized = best_test
+            else:
+                jc_ap_tuple = best_normalization.access_points_tuple
+                best_jc_normalized = best_normalization
+        dict_best_model[jc_ap_tuple] = averaged_normalized_distributions[jc_ap_tuple][2]
+        best_jc_models[jc_ap_tuple] = best_jc_normalized, {jc_ap_tuple: accuracy_check[jc_ap_tuple]}
+    end_jc_model_time = time()
+    jc_time += end_jc_model_time - start_jc_model_time
 
     if location_mode == "SVM":
-        # Build Combined Distributions.
-        # final_containers = build_jc_combined_distributions(
-        #     averaged_distributions=averaged_normalized_distributions,
-        #     num_combinations=num_combinations,
-        #     training_data=data)
-
-        # print("--- Completed Combining All {} Matrices.".format(num_combinations))
-        # sorted_final = sorted(final_containers, key=get_average_rate, reverse=True)
-        # combined_matrix = [matrix.normalization for matrix in sorted_final]
-        # normalized_matrix = [value[0] for value in averaged_normalized_distributions.values()]
-
-        start_jc_model_time = time()
-        for d in range(2, len(access_points) + 1):
-            dict_best_model = dict()
-            average_list = [value[0] for key, value in averaged_normalized_distributions.items() if len(key) == d]
-            sort_matrices(average_list)
-            avg_ap_tuple = tuple(average_list[0].access_points)
-            dict_best_model[avg_ap_tuple] = averaged_normalized_distributions[avg_ap_tuple][1]
-            best_jc_models[tuple(avg_ap_tuple)] = averaged_normalized_distributions[avg_ap_tuple][0], dict_best_model
-        # best_jc_models[sorted_final[0].ap_tuples] = sorted_final[0].normalization, sorted_final[0].ap_svm_dict
-        end_jc_model_time = time()
-        jc_model_time = end_jc_model_time - start_jc_model_time
-        jc_time += jc_model_time
         start_gd_model_time = time()
         for index, value in best_ap_list.items():
             ap_set = max(set(value), key=value.count)
@@ -291,30 +322,21 @@ def create_compare_combination(num_splits: int,
         end_gd_model_time = time()
         gd_model_time = end_gd_model_time - start_gd_model_time
         gd_time += gd_model_time
-        print("JC Time is {}, GD time is {} when location mode is SVM".format(jc_time, gd_time))
-        return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check, best_ig_model
-    else:
-        start_jc_model_time = time()
 
-        averaged_normalized_list = sorted(averaged_normalized_distributions.values(),
-                                          key=lambda x: x.average_matrix_success, reverse=True)
-        for i in range(2, len(access_points) + 1):
-            best_normalization = next(normalized_dist for normalized_dist in averaged_normalized_list if
-                                      len(normalized_dist.access_points) == i)
-            jc_ap_tuple = best_normalization.access_points_tuple
-            best_jc_models[jc_ap_tuple] = best_normalization, {jc_ap_tuple: accuracy_check[jc_ap_tuple]}
+        print("JC Time is {}, GD time is {} when location mode is SVM".format(jc_time, gd_time))
+    else:
         if combine and len(access_points) >= 4:
             list_svm_model = list()
             best_combined_matrixs = list()
 
-            mm_normalized_list = [normalized_matrix for normalized_matrix in
+            mm_normalized_list = [normalized_tuple[0] for normalized_tuple in
                                   list(averaged_normalized_distributions.values()) if
-                                  normalized_matrix.access_points in list(mm_ap_dict.values())]
+                                  normalized_tuple[0].access_points in list(mm_ap_dict.values())]
             sort_matrices(mm_normalized_list)
             for num_combinations in range(2, 4):
                 combined_distributions, normalized_combined_distributions = build_combined_distributions(
                     normalized_distributions=mm_normalized_list,
-                    training_data=data,
+                    training_data=training_data,
                     centroids=centroids,
                     grid_points=grid_points,
                     zones=zones,
@@ -334,9 +356,7 @@ def create_compare_combination(num_splits: int,
                 best_combined_matrix = best_combined_matrixs[d]
                 best_svm_dict = list_svm_model[d]
                 best_jc_models[best_combined_matrix.access_points_tuple] = best_combined_matrix, best_svm_dict
-        end_jc_model_time = time()
-        jc_model_time = end_jc_model_time - start_jc_model_time
-        jc_time += jc_model_time
+
         start_gd_model_time = time()
         for index, value in best_ap_list.items():
             ap_set = max(set(value), key=value.count)
@@ -344,20 +364,14 @@ def create_compare_combination(num_splits: int,
                                normalized_dist.access_points_tuple == ap_set)
             best_d_model = accuracy_check[ap_set]
             best_gd_models[ap_set] = best_matrix, best_d_model
-            print("d = {}, the Best AP Combination is: {}".format(index, ap_set))
-        # combination_method = get_combination_function(combination_mode)
-        # test_results = test_combination_matrices(normalized_combined_distributions=normalized_combined_distributions,
-        #                                          centroids=centroids,
-        #                                          zones=zones,
-        #                                          testing_data=data,
-        #                                          combination_method=combination_method)
-
-        # print("-- Completed Testing Distributions.")
+            # print("d = {}, the Best AP Combination is: {}".format(index, ap_set))
         end_gd_model_time = time()
         gd_model_time = end_gd_model_time - start_gd_model_time
         gd_time += gd_model_time
+
         print("JC Time is {}, GD time is {} when location mode is not SVM".format(jc_time, gd_time))
-        return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check, best_ig_model
+
+    return best_jc_models, best_gd_models, jc_time, gd_time, accuracy_check, best_ig_model, ig_time, jc_all_combination
 
 
 def gd_approach(num_splits: int,
@@ -669,6 +683,7 @@ def create_kflod_combination(train_mode: str,
 
                 probability_distributions = distributions[0]
                 normalized_distributions = distributions[1]
+                test_distributions = distributions[2]
                 fold.create_distributions(access_point_combinations=access_point_combinations,
                                           p_list=probability_distributions,
                                           n_list=normalized_distributions)
@@ -751,7 +766,7 @@ def split_data_set(training_data: List[Sample], ap: AccessPoint, value: int):
 def choose_best_info_gain(training_data: List[Sample], access_points: List[AccessPoint]):
     info_gain_dict = dict()
     base_entropy = calc_shannon_ent(training_data)  # 计算数据集的香农熵
-    print("base entropy is {}".format(base_entropy))
+    # print("base entropy is {}".format(base_entropy))
     for ap in access_points:  # 遍历所有特征
         # 获取dataSet的第i个所有特征
         rssi_list = [data.scan[ap] for data in training_data if ap in data.scan]
@@ -763,7 +778,7 @@ def choose_best_info_gain(training_data: List[Sample], access_points: List[Acces
             new_entropy += prob * calc_shannon_ent(sub_data_set)  # 根据公式计算经验条件熵
         info_gain = base_entropy - new_entropy  # 信息增益
         info_gain_dict[ap] = info_gain
-        print("AP:%s:%.3f" % (ap.num, info_gain))  # 打印每个特征的信息增益
+        # print("AP%s:%.3f" % (ap.num, info_gain))  # 打印每个特征的信息增益
 
     return sorted(info_gain_dict.keys(),
                   key=info_gain_dict.get, reverse=True)
