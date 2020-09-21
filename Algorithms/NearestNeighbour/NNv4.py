@@ -22,7 +22,10 @@ def get_NNv4_RSSI(centroid_points: List[Centroid], rssis: Dict[AccessPoint, int]
             distance = math.pow((rssi - point.get_rssis(ap)), 2)
             distances += distance
         distances = math.sqrt(distances)
-        # print("distance betweem centroid " + point.id + " and target is " + str(distances))
+        # Online: [AP1:-54, AP2:-43, ...]
+        # CP: [AP1: -23, AP2:-30, ...]
+        # Distance += for each AP do: Online - CP (-54 - -23)**2
+        # print("distance between centroid " + point.id + " and target is " + str(distances))
         if cp == centroid_points[0]:
             smallest_distance = distances
         if distances < smallest_distance:

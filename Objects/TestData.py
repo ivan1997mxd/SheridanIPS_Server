@@ -12,7 +12,6 @@ class TestResult:
         self.__answer_details = dict()  # type: Dict[int, Dict[str, int]]
         self.__final_combination = final_combination
 
-
     @property
     def final_combination(self):
         return self.__final_combination

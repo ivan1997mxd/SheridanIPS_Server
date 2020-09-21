@@ -83,26 +83,26 @@ app.send_file_max_agedefault = timedelta(seconds=1)
 x = 0
 y = 0
 
-# Globals to set parameters for Matrix Production
-dates = {
-    "HOME": ["April 3", "April 6", "April 8"],
-    "SCAET": ["November 19", "November 20", "November 21"]
-}
-times = ["15_00", "18_00", "20_00"]  # readonly
-num_combinations = [2]
-combination_modes = ["WGT"]  # ["AVG", "WGT", "AB"]
-error_modes = ["MAX"]
-locate_modes = ["NNv4", "kNN"]
-
-# 1. Establish file location data.
-main_folder = "./Data/November"
-access_point_file_path = "{}/Points/Access Points/Access Points.csv".format(main_folder)
-grid_point_file_path = "{}/Points/Grid Points/November 19 - November 20 - November 21 - November 23 Grid Points.csv".format(
-    main_folder)
-centroid_file_path = "{}/Points/Centroid Points/Centroid Points.csv".format(main_folder)
-zone_file_path = "{}/Zones/Zones.csv".format(main_folder)
-sorted_offline_rssi_folder_path = "{}/RSSI Data/Test Data/Offline".format(main_folder)
-sorted_online_rssi_folder_path = "{}/RSSI Data/Test Data/Online".format(main_folder)
+# # Globals to set parameters for Matrix Production
+# dates = {
+#     "HOME": ["April 3", "April 6", "April 8"],
+#     "SCAET": ["November 19", "November 20", "November 21"]
+# }
+# times = ["15_00", "18_00", "20_00"]  # readonly
+# num_combinations = [2]
+# combination_modes = ["WGT"]  # ["AVG", "WGT", "AB"]
+# error_modes = ["MAX"]
+# locate_modes = ["NNv4", "kNN"]
+#
+# # 1. Establish file location data.
+# main_folder = "./Data/November"
+# access_point_file_path = "{}/Points/Access Points/Access Points.csv".format(main_folder)
+# grid_point_file_path = "{}/Points/Grid Points/November 19 - November 20 - November 21 - November 23 Grid Points.csv".format(
+#     main_folder)
+# centroid_file_path = "{}/Points/Centroid Points/Centroid Points.csv".format(main_folder)
+# zone_file_path = "{}/Zones/Zones.csv".format(main_folder)
+# sorted_offline_rssi_folder_path = "{}/RSSI Data/Test Data/Offline".format(main_folder)
+# sorted_online_rssi_folder_path = "{}/RSSI Data/Test Data/Online".format(main_folder)
 
 # 2. Instantiate "static" objects.
 # access_points = AccessPoint.create_point_list(file_path=access_point_file_path)
@@ -753,7 +753,7 @@ def show_map():
         target_floor = find_floor(filtered_data, target_building)
         print("The Target building is " + target_floor.floor_id)
         samples = filter_scan_data(scan_data, target_floor.access_points, target_floor.zones)
-        combination_method = get_combination_function(combination_modes[0])
+        combination_method = get_combination_function("WGT")
         results = list()
         for sample in samples:
             zone_list = find_position(combination_method=combination_method, centroids=target_floor.get_centroids,
