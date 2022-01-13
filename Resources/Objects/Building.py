@@ -73,23 +73,34 @@ from Resources.Objects.Matrices.NormalizedDistribution import sort_matrices, Nor
 
 
 class Building:
-    def __init__(self, building_name: str, floors: List[Floor]):
+    def __init__(self, building_name: str, floors: List[Floor], access_points: List[AccessPoint]):
         self.building_name: str = building_name
         self.floors: List[Floor] = floors
+        self.access_points = access_points
 
     @property
-    def access_points(self) -> list:
-        aps = list()
+    def zones(self) -> list:
+        zones = list()
         for f in self.floors:
-            aps += [a.id for a in f.access_points]
-        return aps
+            zones += f.zones
+        return zones
+
+    @property
+    def data(self) -> list:
+        data_list = list()
+        for f in self.floors:
+            data_list += f.data
+        return data_list
 
     @classmethod
     def create_building_list(cls, building_list: list):
         buildings = list()
         for b in building_list:
             building_name = b['building_name']
-            floors = Floor.create_floor_list(list(b['floors']))
-            buildings.append(Building(building_name=building_name, floors=floors))
+            if building_name == "Condo_Ble":
+                access_points = AccessPoint.create_db_point_list(list(b['Access_Points']))
+                floors = Floor.create_floor_list(list(b['floors']), access_points)
+                # floors = Floor.create_floor_list_new(list(b['floors']), access_points)
+                buildings.append(Building(building_name=building_name, floors=floors, access_points=access_points))
 
         return buildings

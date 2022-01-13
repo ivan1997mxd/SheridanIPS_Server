@@ -2,7 +2,6 @@ import csv
 from typing import List, Tuple
 from Resources.Objects.Points.Centroid import Centroid
 
-
 # class Zone:
 #     def __init__(self, num: int, tl_x: float, tl_y: float, br_x: float, br_y: float):
 #         self.__num: int = num
@@ -38,17 +37,19 @@ from Resources.Objects.Points.Centroid import Centroid
 #             if self.__top_left_y <= y <= self.__bottom_right_y:
 #                 return True
 #         return False
+from Resources.Objects.Points.GridPoint_RSSI import GridPoint
 
 
 class Zone:
-    def __init__(self, zone_num: str, room_id: str, points: Centroid):
+    def __init__(self, zone_num: str, room_id: str, points: Centroid, distance: dict):
         self.zone_num: str = zone_num
         self.room_id: str = room_id
         self.points: Centroid = points
+        self.distance: dict = distance
 
     @property
     def num(self) -> int:
-        num = int(self.zone_num[-1])
+        num = int(self.zone_num[6:])
         return num
 
     def __str__(self) -> str:
@@ -61,7 +62,8 @@ class Zone:
             zone_num = z["zone_Num"]
             room_id = z['room_id']
             points = Centroid.create_point(z['points'], gp_list)
-            zones.append(Zone(zone_num=zone_num, room_id=room_id, points=points))
+            distances = z['distance']
+            zones.append(Zone(zone_num=zone_num, room_id=room_id, points=points, distance=distances))
         return zones
 
     def home_contains(self, point: Tuple[float, float]) -> bool:
@@ -77,6 +79,14 @@ class Zone:
         y = point[1]
         if self.points.TopLeft.x <= x <= self.points.BottomRight.x:
             if self.points.TopLeft.y <= y <= self.points.BottomRight.y:
+                return True
+        return False
+
+    def condo_contains(self, point: Tuple[float, float]) -> bool:
+        x = point[0]
+        y = point[1]
+        if self.points.BottomLeft.x <= x <= self.points.TopRight.x:
+            if self.points.BottomLeft.y <= y <= self.points.TopRight.y:
                 return True
         return False
 
@@ -113,19 +123,41 @@ class Zone:
 #
 #     return zones
 
+def get_zone_num(zones: List[Zone], zone_num: int) -> Zone:
+    for zone in zones:
+        if zone.num == zone_num:
+            return zone
+    raise Exception("Zone not found. num: " + str(zone_num))
+
 
 def get_zone(zones: List[Zone], co_ordinate: Tuple[float, float]) -> Zone:
     for zone in zones:
-        if zone.room_id == "Bedroom" or zone.room_id == "Hallway":
-            if zone.home_contains(co_ordinate):
-                return zone
-            else:
-                if zone.get_closest(co_ordinate):
-                    return zone
-        else:
-            if zone.contains(co_ordinate):
-                return zone
+        # if zone.room_id == "Bedroom" or zone.room_id == "Hallway":
+        #     if zone.home_contains(co_ordinate):
+        #         return zone
+        #     else:
+        #         if zone.get_closest(co_ordinate):
+        #             return zone
+        # else:
+        # condo
+        if zone.condo_contains(co_ordinate):
+            return zone
+        # otherwise
+        # if zone.contains(co_ordinate):
+        #     return zone
     raise Exception("Zone not found. Co-ordinates: " + str(co_ordinate))
+
+
+def get_cloest_zone(point_list: List[GridPoint], zone_list: List[Zone]):
+    best_zone = None
+    best_points = list()
+    for z in zone_list:
+        points = z.points.CornerPoints
+        filter_point = [p for p in points if p in point_list]
+        if len(filter_point) > len(best_points):
+            best_zone = z
+            best_points = filter_point
+    return best_zone, best_points
 
 
 def get_all_zones_db(zone_list: list) -> List[Zone]:

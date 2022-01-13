@@ -241,13 +241,13 @@
                 <tbody id="wifi_list">
                 {% for item in position_data %}
                     <tr>
-                        <td>{item.id}</td>
-                        <td>{item.username}</td>
-                        <td>{item.role}</td>
-                        <td>{item.Building}</td>
-                        <td>{item.Floor}</td>
-                        <td>{item.Room}</td>
-                        <td>{item.Update}</td>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.username }}</td>
+                        <td>{{ item.role }}</td>
+                        <td>{{ item.Building }}</td>
+                        <td>{{ item.Floor }}</td>
+                        <td>{{ item.Room }}</td>
+                        <td>{{ item.Update }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>

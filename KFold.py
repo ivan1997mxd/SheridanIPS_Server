@@ -579,8 +579,7 @@ def create_kflod_combination(train_mode: str,
     accuracy_check = dict()  # type: Dict[Tuple[AccessPoint, ...], List[svm_model]]
     best_gd_models = dict()  # type: Dict[Tuple[AccessPoint, ...], Tuple[NormalizedMatrix, List[svm_model]]]
     best_jc_models = dict()  # type: Dict[Tuple[AccessPoint, ...], Tuple[NormalizedMatrix, List[svm_model]]]
-    all_access_point_combinations = get_ap_combinations(
-        access_points=access_points)
+    all_access_point_combinations = get_ap_combinations(access_points=access_points)
     for train_indices, test_indices in split_kf:
         print("Starting Fold {} with {}.".format(fold_number, train_mode))
 
@@ -602,8 +601,9 @@ def create_kflod_combination(train_mode: str,
             test_samples.append(training_data[num])
             test_features.append(training_data[num].scan)
             test_classes.append(training_data[num].answer.num)
+
         # Train SVM model
-        d = 2
+        d = 3
         trained_models = list()  # type: List[IndividualModel]
         while d < len(access_points) + 1:
             # Get list of ap combinations
@@ -704,9 +704,8 @@ def create_kflod_combination(train_mode: str,
     if selection_mode == "JC":
         averaged_normalized_list = sorted(averaged_normalized_distributions.values(),
                                           key=lambda x: x.average_matrix_success, reverse=True)
-        for i in range(2, len(access_points) + 1):
-            best_normalization = next(normalized_dist for normalized_dist in averaged_normalized_list if
-                                      len(normalized_dist.access_points) == i)
+        for i in range(3, len(access_points) + 1):
+            best_normalization = next(normalized_dist for normalized_dist in averaged_normalized_list if len(normalized_dist.access_points) == i)
             jc_ap_tuple = best_normalization.access_points_tuple
             best_jc_models[jc_ap_tuple] = best_normalization, accuracy_check[jc_ap_tuple]
             print("JC select:{}".format(jc_ap_tuple))
@@ -767,3 +766,4 @@ def choose_best_info_gain(training_data: List[Sample], access_points: List[Acces
 
     return sorted(info_gain_dict.keys(),
                   key=info_gain_dict.get, reverse=True)
+

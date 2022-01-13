@@ -28,6 +28,7 @@ class AccessPoint(Point):
     def type(self) -> str:
         return self.__type
 
+
     # region Methods
     def ple_distance(self, rssi: int, pleValue: float) -> float:
         numerator = self.__tx_pwr1 - rssi + self.__gain_rx - self.__plref + self.__gain_rx + self.__s_variance
@@ -107,7 +108,7 @@ def get_ap_combinations(access_points: List[AccessPoint]) -> List[Tuple[AccessPo
     access_point_tuples = list()
     for i in range(0, len(access_points) + 1):
         for subset in combinations(access_points, i):
-            if len(subset) < 2:
+            if len(subset) < 3:
                 continue
             access_point_tuples.append(subset)
     return access_point_tuples

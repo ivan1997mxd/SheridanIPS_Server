@@ -23,14 +23,15 @@ def get_calculation_function(calculation_mode: str) -> Callable:
 
 def get_NNv4_RSSI(centroid_points: List[Centroid], rssis: Dict[AccessPoint, int] = None,
                   list_rssis: Dict[Centroid, Dict[AccessPoint, int]] = None) -> Tuple[float, float]:
-    cloest_centroid = centroid_points[0]
+    colest_centroid = centroid_points[0]
     smallest_distance = 0
     if rssis is not None and list_rssis is None:
         for cp in centroid_points:
             point = cp.Center
             distances = 0
             for ap, rssi in rssis.items():
-                distance = math.pow((rssi - point.get_rssis(ap)), 2)
+                value = point.get_rssis(ap)
+                distance = math.pow((rssi - value), 2)
                 distances += distance
             distances = math.sqrt(distances)
             # print("distance betweem centroid " + point.id + " and target is " + str(distances))
@@ -38,7 +39,7 @@ def get_NNv4_RSSI(centroid_points: List[Centroid], rssis: Dict[AccessPoint, int]
                 smallest_distance = distances
             if distances < smallest_distance:
                 smallest_distance = distances
-                cloest_centroid = cp
+                colest_centroid = cp
     if list_rssis is not None and rssis is None:
         for cp, rssis in list_rssis.items():
             point = cp.Center
@@ -52,9 +53,9 @@ def get_NNv4_RSSI(centroid_points: List[Centroid], rssis: Dict[AccessPoint, int]
                 smallest_distance = distances
             if distances < smallest_distance:
                 smallest_distance = distances
-                cloest_centroid = cp
-
-    return cloest_centroid.point
+                colest_centroid = cp
+    # return colest_centroid
+    return colest_centroid.point
 
 
 def get_KNNv1(centroid_points: List[Centroid], rssis: Dict[AccessPoint, int],
@@ -105,7 +106,7 @@ def get_KNNv1(centroid_points: List[Centroid], rssis: Dict[AccessPoint, int],
         # Create a new central point of the K (current K=3) proximate Gird-Points:
     x = round(((grid_points_only[0].x + grid_points_only[1].x + grid_points_only[2].x) / 3), 2)
     y = round(((grid_points_only[0].y + grid_points_only[1].y + grid_points_only[2].y) / 3), 2)
-
+    print("{},{}".format(x, y))
     return x, y
 
 

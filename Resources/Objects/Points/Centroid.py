@@ -23,6 +23,7 @@ class Centroid(Point):
         Str += "BottomRight: " + str(self.BottomRight.id) + "\n"
         return Str
 
+
     def sort_corner_points_by_distance(self) -> None:
         # Selection sort
         for i in range(len(self.CornerPoints)):

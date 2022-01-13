@@ -1,5 +1,9 @@
+import math
+from statistics import mean
+
 from kombu.utils import nested
 from Resources.Objects.Points.AccessPoint import AccessPoint
+from Resources.Objects.Points.GridPoint_RSSI import GridPoint, find_cloest_p
 from Resources.Objects.Zone import Zone
 from os.path import join, isfile
 from os import listdir
@@ -20,13 +24,14 @@ class Sample:
     The Zone Answer is the Zone that the actual Scan was taken from.
     """
 
-    def __init__(self, actual_zone: Zone, scan_data: Dict[AccessPoint, int]):
+    def __init__(self, actual_zone: Zone, scan_data: Dict[AccessPoint, int], random_coord: list = None):
         self.__actual_zone = actual_zone  # type: Zone
         self.__scan_data = scan_data  # type: Dict[AccessPoint, int]
 
         # Used in Adaptive Boosting methods:
         self.__weight = float()  # type: float
         self.__correct = bool()  # type: bool
+        self.random_coord = random_coord
 
     # region Properties
     @property
@@ -44,6 +49,10 @@ class Sample:
     @property
     def correct(self) -> bool:
         return self.__correct
+
+    @property
+    def coord(self) -> list:
+        return self.random_coord
 
     # endregion
 
@@ -69,6 +78,72 @@ class Sample:
 
     def __repr__(self) -> str:
         Str = "Zone: {} - ".format(self.__actual_zone.num)
+        for k, v in self.__scan_data.items():
+            Str += " {AP: " + str(k) + ": RSSI: " + str(v) + "}"
+        return Str
+
+
+class NewSample:
+    """Each Sample consists of a Scan Data Dictionary, and the Zone Answer.
+
+    The Scan Data Dictionary holds 1 set of Scan values - Each Access Point seen, and it's respective RSSI value.
+    The Zone Answer is the Zone that the actual Scan was taken from.
+    """
+
+    def __init__(self, scan_data: Dict[AccessPoint, int], random_coord: list = None, actual_gp: GridPoint = None):
+        self.__actual_gp = actual_gp  # type: GridPoint
+        self.__scan_data = scan_data  # type: Dict[AccessPoint, int]
+        self.__random_coord = random_coord
+
+        # Used in Adaptive Boosting methods:
+        self.__weight = float()  # type: float
+        self.__correct = bool()  # type: bool
+
+    # region Properties
+    @property
+    def answer(self) -> GridPoint:
+        return self.__actual_gp
+
+    @property
+    def scan(self) -> Dict[AccessPoint, int]:
+        return self.__scan_data
+
+    @property
+    def weight(self) -> float:
+        return self.__weight
+
+    @property
+    def correct(self) -> bool:
+        return self.__correct
+
+    @property
+    def coord(self) -> list:
+        return self.__random_coord
+
+    # endregion
+
+    # region Setters
+    @weight.setter
+    def weight(self, value: float) -> None:
+        self.__weight = value
+
+    @correct.setter
+    def correct(self, value: bool) -> None:
+        self.__correct = value
+
+    # endregion
+
+    def rssi(self, access_point: AccessPoint) -> int:
+        return self.__scan_data[access_point]
+
+    def get_ap_rssi_dict(self, *access_points: AccessPoint) -> Dict[AccessPoint, int]:
+        return {k: v for k, v in self.__scan_data.items() if k in access_points}
+
+    def get_rssis(self, *access_points: List[AccessPoint]) -> List[int]:
+        return [rssi for ap, rssi in self.__scan_data.items() if ap in access_points]
+
+    def __repr__(self) -> str:
+        Str = "GP: {} - ".format(self.__actual_gp.num)
         for k, v in self.__scan_data.items():
             Str += " {AP: " + str(k) + ": RSSI: " + str(v) + "}"
         return Str
@@ -234,40 +309,111 @@ def create_test_data_list(access_points: List[AccessPoint],
     return samples
 
 
+def calculate(inputValues: list, initialVariance: float, noise: float):
+    kalmanGain = 0.0
+    processNoise = noise
+    variance_value = initialVariance
+    measurementNoise = variance(inputValues)
+    mean = inputValues[0]
+    filtered_list = []
+
+    for value in inputValues:
+        variance_value = variance_value + processNoise
+        kalmanGain = variance_value / (variance_value + measurementNoise)
+        mean = mean + kalmanGain * (value - mean)
+        variance_value = variance_value - (kalmanGain * variance_value)
+        filtered_list.append(round(mean))
+    return filtered_list
+
+
+def variance(values: list) -> float:
+    sum = 0.0
+    average = mean(values)
+    for v in values:
+        sum += math.pow(v - average, 2)
+    return sum / (len(values) - 1)
+
+
 def create_from_db(access_points: List[AccessPoint],
-                   zones: List[Zone], offline_data: list):
+                   zones: List[Zone], offline_data: list, random_coords: list = None):
     samples = list()  # type: List[Sample]
-    for z in offline_data:
+    for i, z in enumerate(offline_data):
+        if random_coords is not None:
+            zone_coords = random_coords[i]
         zone_data = z['zone_data']
         zone_num = z['zone_num']
-        answer = zones[int(zone_num[-1]) - 1]
-        for zd in zone_data:
+        num = int(zone_num[6:])
+        # if num > 6:
+        #     num -= 6
+        answer = zones[num - 1]
+        for index, zd in enumerate(zone_data):
+            if random_coords is not None:
+                random_coord = zone_coords[index]
             bssid_rssi_dict = dict()  # type: Dict[str, List[int]]
             longest_rssis = 0
             for bssid, rssis in zd.items():
+                # rssis = calculate(rssis, 50.0, 0.008)
                 bssid_rssi_dict[bssid] = rssis
                 if len(rssis) > longest_rssis:
                     longest_rssis = len(rssis)
             for index in range(longest_rssis):
 
                 ap_rssi_dict = dict()  # type: Dict[AccessPoint, int]
+                for access_point in access_points:
+                    rssis = bssid_rssi_dict[access_point.id]
+                    try:
+                        rssi = rssis[index]
+                    except IndexError:
+                        rssi = floor(sum(rssis) / len(rssis))
+                    ap_rssi_dict[access_point] = rssi
 
-                for key, rssis in bssid_rssi_dict.items():
+                if random_coords is not None:
+                    samples.append(Sample(answer, ap_rssi_dict, random_coord))
+                else:
+                    samples.append(Sample(answer, ap_rssi_dict))
+    return samples
 
-                    if len(rssis) == 0:
-                        continue
 
-                    for access_point in access_points:
+def create_from_db_new(access_points: List[AccessPoint], grid_points: List[GridPoint], offline_data: list,
+                       random_coords: list = None):
+    samples = list()  # type: List[NewSample]
+    for i, z in enumerate(offline_data):
+        zone_data = z['zone_data']
+        zone_num = int(z['zone_num'])
+        if random_coords is not None:
+            coord = random_coords[zone_num - 1]
+            answer = find_cloest_p(grid_points, coord)
+        else:
+            answer = grid_points[zone_num - 1]
+        bssid_rssi_dict = dict()  # type: Dict[str, List[int]]
+        longest_rssis = 0
+        for bssid, rssis in zone_data.items():
+            # rssis = calculate(rssis, 50.0, 0.008)
+            bssid_rssi_dict[bssid] = rssis
+            if len(rssis) > longest_rssis:
+                longest_rssis = len(rssis)
+        for index in range(longest_rssis):
 
-                        if key == access_point.id:
-                            try:
-                                ap_rssi_dict[access_point] = rssis[index]
-                            except IndexError:
-                                # Hit because this AP may not have enough RSSI values. Append the average.
-                                ap_rssi_dict[access_point] = floor(sum(rssis) / len(rssis))
-                            break
-                        else:
-                            pass
+            ap_rssi_dict = dict()  # type: Dict[AccessPoint, int]
 
-                samples.append(Sample(answer, ap_rssi_dict))
+            for key, rssis in bssid_rssi_dict.items():
+                if len(rssis) == 0:
+                    continue
+
+                for access_point in access_points:
+
+                    if key == access_point.id:
+                        try:
+                            ap_rssi_dict[access_point] = rssis[index]
+                        except IndexError:
+                            # Hit because this AP may not have enough RSSI values. Append the average.
+                            ap_rssi_dict[access_point] = floor(sum(rssis) / len(rssis))
+                        break
+                    else:
+                        pass
+            if random_coords is not None:
+                samples.append(NewSample(scan_data=ap_rssi_dict, actual_gp=answer, random_coord=coord))
+            else:
+                samples.append(NewSample(scan_data=ap_rssi_dict, actual_gp=answer))
+
     return samples

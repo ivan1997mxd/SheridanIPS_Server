@@ -14,9 +14,9 @@ def kalman_filter_data(raw_data_file_path: str,
                        noise: float = 0.008):
     # dates = ["November 19", "November 20", "November 21", "November 23"]
     # times = ["15_00", "17_00", "19_00"]
-    dates = ["March 30"]
-    times = ["15_00"]
-    point_types = ["Grid Points"]
+    dates = ["April 3", "April 6", "April 8"]
+    times = ["15_00", "18_00", "20_00"]
+    point_types = ["Center of Zone"]
 
     for date in dates:
 
@@ -29,6 +29,7 @@ def kalman_filter_data(raw_data_file_path: str,
                 data_files = [f for f in listdir(raw_data_source_path) if isfile(join(raw_data_source_path, f))]
                 for file in data_files:
                     bssid_rssi_dict = dict()  # type: Dict[str, List[int]]
+                    print(file)
                     with open(raw_data_source_path + file, "r", newline='') as csvFile:
                         reader = csv.reader(csvFile)
                         for scan in reader:
@@ -110,7 +111,8 @@ def kalman_filter(value_list: list):
 
 
 # kalman_filter_file("D:/Code/SheridanIPS_Server/Data/RMAC-Filtered/April 3/18_00/Center of Zone/Center of Zone 5.csv", "D:/Code/SheridanIPS_Server/Data/Kalman Filter Values/April 3/18_00/Center of Zone/Center of Zone 5.csv")
-# kalman_filter_data("C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Floor-Filtered/Home 5/", "C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Kalman-Filtered/Home 5/")
+kalman_filter_data("E:/Code/SheridanIPS_Server/Data/NewData/Home 6", "E:/Code/SheridanIPS_Server/Data/NewFilterData"
+                                                                     "/Home 6")
 # public class Kalman {
 #
 # /* Complete calculation of Kalman Filter */

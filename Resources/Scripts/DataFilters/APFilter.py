@@ -92,7 +92,9 @@ def ap_filter(folder_path: str, dates: List[str],
     list_ap = list()
     aps = ["c4:09:38:6d:3b:09",
            "f8:ab:05:4f:90:86",
-           "18:d6:c7:4d:3b:ec"]
+           "18:d6:c7:4d:3b:ec",
+           "18:90:d8:dc:2b:2e",
+           "34:8a:ae:6b:5e:6e"]
 
     for date in dates:
         for time in times:
@@ -287,14 +289,14 @@ def csv_to_json(raw_data_file_path: str, dates: List[str], times: List[str], poi
     print(json_list)
 
 
-# csv_to_json("D:/Code/SheridanIPS_Server/Data/HOME/5", ["April 3", "April 6", "April 8"],
-#             ["15_00", "18_00", "20_00"], ["Center of Zone"])
+csv_to_json("E:/Code/SheridanIPS_Server/Data/NewData/Home 6", ["April 3", "April 6", "April 8"],
+            ["15_00", "18_00", "20_00"], ["Center of Zone"])
 
 # csv_to_json("D:/Code/SheridanIPS_Server/Data/SCAET/1", ["November 19", "November 20", "November 21", "November 23"],
 #             ["15_00", "18_00", "20_00"], ["Center of Zone"])
 
-# create_mix_data_list("C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Kalman Filter Values",
-#                      "C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Beacon Data/Kalman-Filtered/Home 6",
+# create_mix_data_list("E:/Code/SheridanIPS_Server/Data/NewData/Home 6",
+#                      "E:/Code/SheridanIPS_Server/Data/Beacon Data/Raw Data/Home 6",
 #                      ["April 3", "April 6", "April 8"], ["15_00", "18_00", "20_00"])
 
 # create_list("C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Kalman-Filtered/Home 5",
@@ -309,9 +311,23 @@ def csv_to_json(raw_data_file_path: str, dates: List[str], times: List[str], poi
 #     "C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Floor-Filtered/Home 5/March 30/15_00/Grid Points/")
 # ap_filter("D:/Code/SheridanIPS_Server/Data/Raw RSSI Values", ["April 3"], ["18_00"])
 # avg_ap("C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Kalman-Filtered/Home 5")
-# rmac_filter_data(
-#     "C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Raw Data/Home 5/March 30/15_00/Center of Zone/Center of Zone 6.csv",
-#     "C:/Users/tongche/Desktop/New Project/SheridanIPS_Server/Data/Wifi Data/Floor-Filtered/Home 5/March 30/15_00/Center of Zone/Center of Zone 6.csv",
-#     ["c4:09:38:6d:3b:09",
-#      "f8:ab:05:4f:90:86",
-#      "18:d6:c7:4d:3b:ec"])
+
+# date = ["April 3", "April 6", "April 8"]
+# time = ["15_00", "18_00", "20_00"]
+# zone = ["Center of Zone 1",
+#         "Center of Zone 2",
+#         "Center of Zone 3",
+#         "Center of Zone 4",
+#         "Center of Zone 5",
+#         "Center of Zone 6"]
+# for d in date:
+#     for t in time:
+#         for z in zone:
+#             rmac_filter_data(
+#                 "E:/Code/SheridanIPS_Server/Data/Raw RSSI Values/{}/{}/Center of Zone/{}.csv".format(d, t, z),
+#                 "E:/Code/SheridanIPS_Server/Data/NewData/Home 6/{}/{}/Center of Zone/{}.csv".format(d, t, z),
+#                 ["c4:09:38:6d:3b:09",
+#                  "f8:ab:05:4f:90:86",
+#                  "18:d6:c7:4d:3b:ec",
+#                  "18:90:d8:dc:2b:2e",
+#                  "34:8a:ae:6b:5e:6e"])

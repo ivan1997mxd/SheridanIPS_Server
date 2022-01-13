@@ -1,11 +1,13 @@
 import ast
 import functools
+import io
 import json
 import operator
 import os
 import re
 import shutil
 import winsound
+from base64 import encodebytes
 from collections import OrderedDict
 from datetime import timedelta, datetime
 from math import floor
@@ -20,21 +22,25 @@ import numpy
 import numpy as np
 import pandas as pd
 import xlrd
+from PIL import Image
 from flask import Flask, send_from_directory, session
 from flask_pymongo import PyMongo
 from flask import Flask, render_template, flash, redirect, url_for, make_response
 from flask import request
 from celery import Celery
+from sklearn import svm
+from sklearn import metrics
 
 from Algorithms.NearestNeighbour.Calculation import get_calculation_function
 from Algorithms.NearestNeighbour.KNNv1 import get_KNNv1
 from Algorithms.NearestNeighbour.NNv4 import get_NNv4_RSSI
 from Algorithms.svm.svm import svm_model
-from Algorithms.svm.svmutil import svm_predict
+from Algorithms.svm.svmutil import svm_predict, svm_train
 from Resources.Objects.Building import Building
 from Resources.Objects.Comparesheet import Comparesheet
 from Resources.Objects.Floor import Floor
 from Resources.Objects.Matrices.CombinedDistribution import test_combination_matrices, test_svm_matrices
+from Resources.Objects.Matrices.MethodMatrix import MethodMatrix
 from Resources.Objects.Matrices.NormalizedDistribution import NormalizedMatrix, sort_matrices
 from Algorithms.Combination.Combination import get_combination_function, build_combined_distributions
 from Resources.Objects.Matrices.ProbabilityDistribution import ProbabilityMatrix
@@ -55,6 +61,7 @@ from uuid import uuid4
 import xlsxwriter.exceptions
 import xlsxwriter
 import KFold
+import heapq
 import math
 import libsvm
 
@@ -95,7 +102,7 @@ y = 0
 # locate_modes = ["NNv4", "kNN"]
 #
 # # 1. Establish file location data.
-# main_folder = "./Data/November"
+main_folder = "./Data/thesis"
 # access_point_file_path = "{}/Points/Access Points/Access Points.csv".format(main_folder)
 # grid_point_file_path = "{}/Points/Grid Points/November 19 - November 20 - November 21 - November 23 Grid Points.csv".format(
 #     main_folder)
@@ -129,9 +136,15 @@ position_data = []
 location_data = []
 room_list = []
 
-
-# training_data = list()  # type: List[Sample]
-# testing_data = list()  # type: List[Sample]
+access_points = [
+    "A4:CE:DA:58:E1:4D",
+    "78:DD:12:1E:38:19",
+    "CC:D4:2E:10:96:5D",
+    "70:F1:96:86:9f:76"
+]
+zone_list = [(73, 418), (73, 338), (73, 258), (73, 178), (73, 98),
+             (153, 418), (153, 338), (153, 258), (153, 178), (153, 98),
+             (233, 418), (233, 338), (233, 258), (233, 178), (233, 98)]
 
 
 def random_data(floor: Floor, online_pct: float, samples: List[Sample]):
@@ -149,6 +162,53 @@ def random_data(floor: Floor, online_pct: float, samples: List[Sample]):
         online_samples += online_part
         offline_samples += offline_part
     return online_samples, offline_samples
+
+
+# current_building = buildings[-1]
+# current_floor = current_building.floors[0]
+# data_sets = current_floor.data
+# shuffle(data_sets)
+# current_aps = current_building.access_points
+#
+# test_samples, train_samples = random_data(current_floor, 0.2, data_sets)
+
+# train_features = list()  # type: List[Dict[AccessPoint, int]]
+# train_classes = list()  # type: List[int]
+# test_features = list()  # type: List[Dict[AccessPoint, int]]
+# test_classes = list()  # type: List[int]
+# distance_error = 0
+# count = 0
+# for sample in train_samples:
+#     train_classes.append(sample.answer.num)
+#     train_features.append(sample.scan)
+#
+# for sample in test_samples:
+#     test_classes.append(sample.answer.num)
+#     test_features.append(sample.scan)
+#
+# ap_train_features = list()
+# ap_test_features = list()
+# for feature_set in train_features:
+#     ap_train_features.append(
+#         [value for key, value in feature_set.items()])
+#
+# for feature_set in test_features:
+#     ap_test_features.append([value for key, value in feature_set.items()])
+
+# Train svm model
+
+# m = svm_train(data_classes, data_features, '-q')
+# clf = svm.SVC(gamma='auto', decision_function_shape='ovo')
+# clf.fit(X=data_features, y=data_classes)
+
+
+# current_gps = current_floor.grid_points
+# current_cts = current_floor.get_centroids
+# current_zones = current_floor.zones
+
+
+# training_data = list()  # type: List[Sample]
+# testing_data = list()  # type: List[Sample]
 
 
 def compare_methods(buildings: buildings,
@@ -936,7 +996,6 @@ def other_test(centroids: List[Centroid], location_mode: str,
         return calculated_zone
 
 
-
 def filter_scan_data(scan_data,
                      access_points: List[AccessPoint],
                      zones: List[Zone]):
@@ -975,11 +1034,9 @@ def convert_epoch_to_datetime(epoch_time):
 @app.route('/offline', methods=['Get', 'POST', 'PUT'])
 def offline():
     if request.method == 'PUT':
-        print(request.form.to_dict())
         dict_data = ast.literal_eval(request.form.getlist('PutData')[0])  # Gets the actual JSON data that was sent.
-        print(dict_data)
         scan_data = dict_data["Scans"]["data"]
-        filter_data(scan_data)
+        filtered_data = filter_data(scan_data)
 
 
 def filter_data(data):
@@ -987,11 +1044,6 @@ def filter_data(data):
     data1 = sorted(data, key=lambda k: len(k.get('RSSIs')), reverse=True)
     print(data1)
     return data1
-
-
-def save_to_db(scan_data):
-    for data in scan_data:
-        mongo.db.Offline_data.insert(data)
 
 
 @app.route('/update', methods=['Get', 'POST', 'PUT'])
@@ -1033,6 +1085,22 @@ def update():
         return render_template("location.html")
 
 
+def store_data(dict_data, gp):
+    return {gp: dict_data}
+
+
+def save_to_db(scan_data):
+    mongo.db.ble_data.insert(scan_data)
+
+
+def count_data(scan_data, scan_number):
+    # scan_data = [d for d in scan_data if len(d['RSSIs']) >= (scan_number - 5)]
+
+    sorted_data = sorted(scan_data, key=lambda k: mean(k.get('RSSIs')), reverse=True)
+    print(len(sorted_data))
+    return sorted_data
+
+
 @app.route('/save_rssis', methods=['PUT'])
 def save_rssis():
     # Beep me
@@ -1041,20 +1109,226 @@ def save_rssis():
     winsound.Beep(frequency, duration)
 
     dict_data = ast.literal_eval(request.form.getlist('PutData')[0])  # Gets the actual JSON data that was sent.
-    print(dict_data)  # Print to CLI just in case.
+    # print(dict_data)  # Print to CLI just in case.
     scan_data = dict_data['Scans']['data']
     scan_num = dict_data['Scans']['Scan_number']
     sorted_data = count_data(scan_data, scan_num)
-    print(sorted_data)
-    response = store_data(dict_data)
+    # print(sorted_data)
+    val = input("Enter your gp: ")
+    print(val)
+    response = store_data(sorted_data, val)
     print(str(response))
-    return json.dumps(response)
+    save_to_db(response)
+    answer = {"result": "Done"}
+    return json.dumps(answer)
 
 
-def count_data(scan_data, scan_number):
-    scan_data = [d for d in scan_data if len(d['RSSIs']) == scan_number]
-    sorted_data = sorted(scan_data, key=lambda k: mean(k.get('RSSIs')), reverse=True)
-    return sorted_data
+@app.route('/build', methods=['GET'])
+def build_offline_matrix():
+    clf = svm.SVC(gamma='scale', decision_function_shape='ovo')
+    clf.fit(X=ap_train_features, y=train_classes)
+    prediction = clf.predict(
+        X=ap_test_features)
+    print(prediction)
+    print(test_classes)
+
+    result = metrics.accuracy_score(test_classes, prediction)
+    print(result)
+    # MethodMatrix(num_combinations=num_combination,
+    #              error_mode=error_mode,
+    #              best_gamma="Default",
+    #              train_data=len(training_data),
+    #              test_data=len(testing_data),
+    #              k_fold=num_splits,
+    #              building=building,
+    #              floor=floor,
+    #              tables=sheet_tab,
+    #              access_points=access_point_d,
+    #              type_mode=type_mode
+    #              )
+    # file_name = "Condo_7_SVM.xlsx"
+    # excel_workbook = xlsxwriter.Workbook("{}/Matrices/{}".format(main_folder, file_name))
+    # bold = excel_workbook.add_format({'bold': True})
+    # merge_format = excel_workbook.add_format({'bold': True, 'align': 'center'})
+    #
+    # # Save the key page:
+    # excel_worksheet = excel_workbook.add_worksheet("Keys")
+    # MethodMatrix.save_key_page(excel_worksheet, bold=bold, merge_format=merge_format)
+    # # Comparesheet.save_key_page(excel_worksheet, bold=bold, merge_format=merge_format)
+    #
+    # # Save all other pages:
+    # problems_saving = list()  # type: List[str]
+    # for sheet in Worksheet:
+    #     try:
+    #         excel_worksheet = excel_workbook.add_worksheet(sheet.tab_title)
+    #         chart_worksheet = excel_workbook.add_worksheet("{}-chart".format(sheet.tab_title))
+    #         special_worksheet = excel_workbook.add_worksheet("{}-special".format(sheet.tab_title))
+    #     except xlsxwriter.exceptions.DuplicateWorksheetName:
+    #
+    #         problem_sheet = sheet.tab_title
+    #         problem_resolution = str(uuid4())[:25]
+    #         problem_description = "Worksheet {} has the same tab-title as another page. It has been replaced with {}."
+    #         problems_saving.append(problem_description.format(problem_sheet, problem_resolution))
+    #
+    #         excel_worksheet = excel_workbook.add_worksheet(problem_resolution)
+    #
+    #     sheet.save(excel_worksheet, chart_worksheet, special_worksheet, excel_workbook, bold=bold,
+    #                merge_format=merge_format)
+    # excel_workbook.close()
+
+    return "the result: " + str(result)
+
+
+@app.route('/find_location', methods=['PUT'])
+def find_location():
+    # Beep me
+    # frequency = 4000
+    # duration = 1000
+    # winsound.Beep(frequency, duration)
+    location_mode = 'NNv4'
+    dict_data = ast.literal_eval(request.form.getlist('PutData')[0])  # Gets the actual JSON data that was sent.
+    print(dict_data)  # Print to CLI just in case.
+    destination = dict_data['Destination']
+
+    scan_data = dict_data['Scans']['data']
+    ap_dict = dict()
+    for ap in current_aps:
+        for d in scan_data:
+            if d['BSSID'] == ap.id:
+                ap_dict[ap] = d['RSSIs'][0]
+    ap_list = list()
+    ap_list.append(list(ap_dict.values()))
+    print(ap_list)
+
+    if len(ap_list) == 3:
+        clf = svm.SVC(gamma='scale', decision_function_shape='ovo')
+        clf.fit(X=ap_train_features, y=train_classes)
+        prediction = clf.predict(
+            X=ap_list)
+        pred = "C-7-Z-" + str(prediction[0])
+        print(pred)
+    else:
+        location_method = get_calculation_function(location_mode)
+        if location_mode == "NNv4" or location_mode == "kNNv2" or location_mode == "kNNv1":
+            calculated_co_ordinate = location_method(centroid_points=current_cts, rssis=ap_dict)
+        if location_mode == "kNNv3":
+            calculated_co_ordinate = location_method(grid_points=current_gps, rssis=ap_dict)
+        # coord = get_NNv4_RSSI(centroid_points=centroids, rssis=ap_rssi_dict)
+        zone = get_zone(zones=current_zones, co_ordinate=calculated_co_ordinate)
+        pred = zone.zone_num
+    current_graph = current_floor.get_graph
+    dijkstra(current_graph, current_graph.get_vertex(pred))
+
+    target = current_graph.get_vertex(destination)
+    path = [target.get_id()]
+    shortest_path = shortest(target, path)
+    print('The shortest path : %s' % (shortest_path[::-1]))
+    mark_image(shortest_path[::-1])
+    image_path = os.path.join(basePath, 'static/img', 'map3.png')  # point to your image location
+    encoded_img = get_response_image(image_path)
+    answer = {"result": pred, "image": encoded_img}
+    return json.dumps(answer)
+
+
+def get_response_image(image_path):
+    pil_img = Image.open(image_path, mode='r')  # reads the PIL image
+    byte_arr = io.BytesIO()
+    pil_img.save(byte_arr, format='PNG')  # convert the PIL image to byte array
+    encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')  # encode as base64
+    return encoded_img
+
+
+def mark_image(path):
+    image = cv2.imread("static/img/map2.png")
+    for i in range(len(path)):
+        p = path[i]
+        num = int(p[6:])
+        cood = zone_list[num - 1]
+        x = cood[0]
+        y = cood[1]
+        j = i + 1
+        if j < len(path):
+            p2 = path[j]
+            num2 = int(p2[6:])
+            cood2 = zone_list[num2 - 1]
+            x2 = cood2[0]
+            y2 = cood2[1]
+            cv2.line(image, (x, y), (x2, y2), (0, 255, 255), 2)
+            d = num2 - num
+            if d == 1:
+                cv2.line(image, (x2, y2), (x2 + 10, y2 + 10), (0, 255, 255), 2)
+                cv2.line(image, (x2, y2), (x2 - 10, y2 + 10), (0, 255, 255), 2)
+            if d == 5:
+                cv2.line(image, (x2, y2), (x2 - 10, y2 + 10), (0, 255, 255), 2)
+                cv2.line(image, (x2, y2), (x2 - 10, y2 - 10), (0, 255, 255), 2)
+            if d == -5:
+                cv2.line(image, (x2, y2), (x2 + 10, y2 + 10), (0, 255, 255), 2)
+                cv2.line(image, (x2, y2), (x2 + 10, y2 - 10), (0, 255, 255), 2)
+            if d == -1:
+                cv2.line(image, (x2, y2), (x2 + 10, y2 - 10), (0, 255, 255), 2)
+                cv2.line(image, (x2, y2), (x2 - 10, y2 - 10), (0, 255, 255), 2)
+        if j == len(path):
+            cv2.circle(image, (x, y), 5, (0, 255, 0), thickness=-1)
+        if i == 0:
+            cv2.circle(image, (x, y), 5, (0, 255, 255), thickness=-1)
+        cv2.rectangle(image, (x - 40, y - 40), (x + 40, y + 40), (255, 255, 0), 2)
+
+    cv2.imwrite(os.path.join(basePath, 'static/img', 'map3.png'), image)
+    print("Images changed")
+
+
+def dijkstra(aGraph, start):
+    print('''Dijkstra's shortest path''')
+    # Set the distance for the start node to zero
+    start.set_distance(0)
+
+    # Put tuple pair into the priority queue
+    unvisited_queue = [(v.get_distance(), v) for v in aGraph]
+    # heapq.heapify(unvisited_queue)
+    unvisited_queue = sorted(unvisited_queue, key=lambda x: x[0])
+
+    while len(unvisited_queue):
+        # Pops a vertex with the smallest distance
+        # uv = heapq.heappop(unvisited_queue)
+
+        uv = unvisited_queue.pop(0)
+        current = uv[1]
+        current.set_visited()
+
+        # for next in v.adjacent:
+        for next in current.adjacent:
+            # if visited, skip
+            if next.visited:
+                continue
+            new_dist = current.get_distance() + current.get_weight(next)
+
+            if new_dist < next.get_distance():
+                next.set_distance(new_dist)
+                next.set_previous(current)
+                print('updated : current = %s next = %s new_dist = %s' % (
+                    current.get_id(), next.get_id(), next.get_distance()))
+            else:
+                print(
+                    'not updated : current = %s next = %s new_dist = %s'
+                    % (current.get_id(), next.get_id(), next.get_distance()))
+
+        # Rebuild heap
+        # 1. Pop every item
+        while len(unvisited_queue):
+            # heapq.heappop(unvisited_queue)
+            unvisited_queue.pop(0)
+        # 2. Put all vertices not visited into the queue
+        unvisited_queue = [(v.get_distance(), v) for v in aGraph if not v.visited]
+        # heapq.heapify(unvisited_queue)
+        unvisited_queue = sorted(unvisited_queue, key=lambda x: x[0])
+
+
+def shortest(v, path):
+    """ make shortest path from v.previous"""
+    if v.previous:
+        path.append(v.previous.get_id())
+        shortest(v.previous, path)
+    return path
 
 
 def update_annotation(broadcaster_data):
@@ -1217,7 +1491,7 @@ def train_db(num_combination: int,
             NormalizedMatrix.test_mode = test_mode
 
             access_point_combinations = get_ap_combinations(access_points)  # type: List[Tuple[AccessPoint, ...]]
-            divide_data = random_data(floor, 0.5, raw_data_1)
+            divide_data = random_data(floor, 0.2, raw_data_1)
             testing_data = divide_data[0]
             training_data = divide_data[1]
             shuffle(training_data)
@@ -1281,6 +1555,26 @@ def train_db(num_combination: int,
             best_set = max(final_correct.items(), key=operator.itemgetter(1))[0]
             floor.matrix = test_results[best_set][0]
             floor.model = test_results[best_set][1]
+
+
+@app.route("/upload", methods=['GET', 'POST', 'PUT'])
+def read_apk():
+    if request.method == 'PUT':
+        print("received")
+        dict_data = ast.literal_eval(request.form.getlist('PutData')[0])
+        receive_time = dict_data['Time']
+        device_id = dict_data['Device_ID']
+        file = dict_data['File']
+        answer = {"result": "Done"}
+        return json.dumps(answer)
+
+
+def get_response_image(image_path):
+    pil_img = Image.open(image_path, mode='r')  # reads the PIL image
+    byte_arr = io.BytesIO()
+    pil_img.save(byte_arr, format='PNG')  # convert the PIL image to byte array
+    encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii')  # encode as base64
+    return encoded_img
 
 
 # region Main
